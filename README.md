@@ -1,6 +1,19 @@
 # Autonomous Vehicle Object Detection
 The purpose of this project is to develop a custom road obstacle detection with bounding boxes CNN model and compare it to state-of-the-art models like YOLO.
 
+## How to Use:
+- Training custom model:
+  - Adjust hyperparameters in `config.yaml`
+  - Run `train.py`
+  - Note: This is currently running on CIFAR10 dataset and will need to be generalized for otherdatasets.
+- Inference custom model:
+  - Run `inference.py`. Be sure to adjust the input images to infer on.
+- Inference YOLO:
+  - Run `yolo_world.py`. Be sure to adjust the input images to infer on.
+
+## Notes:
+- Some of the files in the below directory are not showing up. This is because they are in the .gitignore because they have too much data to push. Because of this, some models such as yolov8s-worldv2.pt will need to be downloaded.
+
 ## File Structure:
 - `data`: Training data
 - `figs`: Custom training output figures
