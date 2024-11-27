@@ -1,5 +1,11 @@
 # Autonomous Vehicle Object Detection
-The purpose of this project is to develop a custom road obstacle detection with bounding boxes CNN model and compare it to state-of-the-art models like YOLO.
+The purpose of this project is to improve upon current state of the art object detection models by creating a vision-based perception model that is capable of identifying and bboxing common road obstacles from visual data (cars, people, cyclists, etc.).
+
+## TO DO:
+- Implement KITTI dataset and add functionality to train a model with bounding boxes
+- Modify YOLO to train on KITTI
+- Implement other models: Faster R-CNN, Mask R-CNN, EfficientDet
+- Implement visualization to compare results
 
 ## How to Use:
 - Training custom model:
