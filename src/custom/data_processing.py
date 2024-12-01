@@ -1,4 +1,3 @@
-# from data_loaders.cifar10 import CIFAR10 # data loader for cifar10
 import torchvision.transforms as transforms
 import torchvision
 import os
