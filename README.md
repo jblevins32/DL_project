@@ -1,16 +1,18 @@
 # Autonomous Vehicle Object Detection
-The purpose of this project is to improve upon current state of the art object detection models by creating a vision-based perception model that is capable of identifying and bboxing common road obstacles from visual data (cars, people, cyclists, etc.).
+The purpose of this project is to improve upon current state of the art object detection models by creating a vision-based perception model that is capable of identifying and bboxing common road obstacles from visual data (cars, people, cyclists, traffic lights, etc.).
 
-## TO DO:
-- Implement [KITTI](https://www.cvlibs.net/datasets/kitti/raw_data.php), BDD100K, [Waymo](https://waymo.com/open/download/), or ApolloScape datasets
-- Add functionality to train models with bounding boxes
-- Modify YOLO to train on new data
-- Implement other models: Faster R-CNN, Mask R-CNN, EfficientDet
-- Implement visualization to compare results
+## TO DO (don't delete anything from this list):
+- [MATTHEW/JACOB] Parse datasets into usable data -> lists of image files with groundtruth labels for object classes and bbox info. Training, validation, and testing sets.
+  - Datasets: [KITTI](https://www.cvlibs.net/datasets/kitti/raw_data.php), [BDD100K](https://www.vis.xyz/bdd100k/), [Waymo](https://waymo.com/open/download/), [ApolloScape](https://apolloscape.auto/)
+  - Jacob's note: The waymo dataset seems very nice, but may only be available in Google cloud. I would prefer to use this dataset if possible. 
+- [JACOB] Add functionality to train models with bounding boxes -> change model to output class label AND bbox x,y,h,w
+- [MATTHEW] Modify YOLO to train on new data -> train yolo model or use pretrained?
+- [JACOB] Implement other models: Faster R-CNN, Mask R-CNN, EfficientDet -> Look for libraries for these models (probably an easy import into python)
+- [MATTHEW/JACOB] Research and implement visualization or evaluation metrics to compare results
 ### Stretch goals:
-- Context awareness with attention or RNNs
+- Context awareness with attention or RNNs/LSTMs
 - Add depth estimation
-- Apply to phone app (may need to optimize for edge devices)
+- Apply to phone app (may need to optimize large models for edge devices)
 
 ## How to Use:
 - Training custom model:
