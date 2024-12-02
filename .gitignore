@@ -17,3 +17,7 @@
 # Ignore contents of /src/YOLO/input_media but keep the folder
 /src/YOLO/input_media/*
 !/src/YOLO/input_media/.gitkeep
+src/.idea
+dataset
+src/custom/__pycache__
+.idea
