@@ -4,10 +4,12 @@ channels:
   - conda-forge
 dependencies:
   - python==3.12
-  - numpy
+  - numpy<2
+  - scikit-learn
   - pyyaml
   - matplotlib
   - jupyter
   - pytest
   - tqdm
   - torch
+  - torchvision
