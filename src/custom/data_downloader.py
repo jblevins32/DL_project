@@ -25,7 +25,8 @@ class KittiDataDownloader:
             # populate folder with downloaded training ground truth labels
             self.downloadTrainingLabels()
         else:
-            print(f"Directory {self.dataset_dir} already exists. No action needed.")
+            print(f"\nDirectory {self.dataset_dir} already exists. No download needed.\n "
+                  f"** If dataset has been corrupted, delete the dataset folder to trigger re-download.**\n")
 
     def downloadImages(self):
         os.makedirs(self.image_dir)
