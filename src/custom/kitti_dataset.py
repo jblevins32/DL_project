@@ -44,6 +44,7 @@ class KittiDataset(Dataset):
                 continue
 
             if not os.path.exists(cropped_image_dir):
+                print("\nMissing cropped dataset image directory, recomputing all following croppings...")
                 os.makedirs(cropped_image_dir)
                 self.shouldCrop = True
 
