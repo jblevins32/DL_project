@@ -1,5 +1,5 @@
 Train:
-  batch_size: 100
+  batch_size: 5 # 5 for kitti and 100 for cifar works
   learning_rate: 0.005
   reg: 0
   epochs: 15
@@ -8,3 +8,4 @@ Train:
   momentum: 0.9
   gamma: 1
   model_type: "customcnn" # linear, alexnet, resnet, customcnn
+  data_type: "kitti" # cifar, kitti

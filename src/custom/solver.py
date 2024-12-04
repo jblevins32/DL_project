@@ -6,8 +6,8 @@ import copy
 from models import MyModel
 import matplotlib.pyplot as plt
 import pathlib
-from data_processing import DataProcessing
-
+from data_processing_cifar import DataProcessing
+from data_processing_kitti import DataProcessorKitti
 
 class Solver(object):
     def __init__(self, **kwargs):
@@ -34,10 +34,14 @@ class Solver(object):
         self.warmup = kwargs.pop("warmup", 0)
         self.save_best = kwargs.pop("save_best", True)
         self.model_type = kwargs.pop("model_type", "linear")
+        self.data_type = kwargs.pop("data_type", "cifar")
         
         # Define the data
-        self.train_loader, self.val_loader, self.test_dataset = DataProcessing(self.batch_size)
-                
+        if self.data_type == "cifar":
+            self.train_loader, self.val_loader, self.test_dataset = DataProcessing(self.batch_size)
+        elif self.data_type == "kitti": 
+            self.train_loader, self.val_loader, self.test_dataset = DataProcessorKitti(self.batch_size)
+
         # Define the NN model
         self.model = MyModel(self.model_type, self.batch_size)
         # print(self.model)
@@ -101,6 +105,7 @@ class Solver(object):
             loss = self.MainLoop(epoch, self.train_loader)
             
             print(f'Validating epoch {epoch}')
+            
             # Validate
             self.model.eval()
             acc, cm = self.MainLoop(epoch, self.val_loader)
@@ -153,8 +158,21 @@ class Solver(object):
         cm = torch.zeros(num_class, num_class)
 
         # Train on training data by batch. Note: enumerate() provides both the idx and data
-        for idx, (data, target) in enumerate(data_loader):
+        for idx, data in enumerate(data_loader):
             
+            data_tensors = [item[0] for item in data]
+            label_dicts = [item[1] for item in data]
+            data = torch.stack(data_tensors)
+            targets = torch.stack(label_dicts)
+            
+            # if the data is not in the correct shape for the model
+            if not tuple(data[0]): 
+                target = data[1]
+                data = data[0]
+            else:
+                target = data[0][1]
+                data = data[0][0]
+                
             # Log start time of this batch training
             start_batch = time.time()
             

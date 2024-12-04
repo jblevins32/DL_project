@@ -11,7 +11,7 @@ def DataProcessorKitti(batch_size):
     dataDownloader.prepareDataset()
 
     image_dir = "dataset/images/training/image_02"
-    label_dir = "dataset/labels/label_02"
+    label_dir = "dataset/labels/training/label_02"
 
     transform = transforms.Compose([
         transforms.ToTensor(),  # Convert images to PyTorch tensors

@@ -5,7 +5,6 @@ Run this script to train a model
 import yaml
 from solver import Solver
 import torch
-from solver_kitti import SolverKitti
 
 # Choose calculation device - Use cpu if CUDA gpu not available
 device = 'mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu')
@@ -21,7 +20,7 @@ kwargs['device'] = device
 print("Configurations:", kwargs)
 
 # Instantiate training object which loads all model parameters
-solver = SolverKitti(**kwargs)
+solver = Solver(**kwargs)
 
 # Train model
 solver.train()
