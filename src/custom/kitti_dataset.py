@@ -26,22 +26,26 @@ class KittiDataset(Dataset):
         self.desiredWidth = 1220
         self.desiredHeight = 365
 
+
+        # Change to True to recompute croppings if they already exist
         self.shouldCrop = False
 
         # Parse all scenes and frames
         scenes = sorted(os.listdir(image_dir))
         for scene in scenes:
+            if not self.sceneValid(scene):
+                continue
+
             scene_image_dir = os.path.join(image_dir, scene)
             scene_label_dir = os.path.join(label_dir, f"{scene}.txt")
             cropped_image_dir = os.path.join(scene_image_dir, 'cropped')
 
-            if not os.path.exists(cropped_image_dir):
-                os.makedirs(cropped_image_dir)
-            else:
-                self.shouldCrop = False
-
             if not os.path.exists(scene_label_dir):
                 continue
+
+            if not os.path.exists(cropped_image_dir):
+                os.makedirs(cropped_image_dir)
+                self.shouldCrop = True
 
             # Parse the label file for this scene
             with open(scene_label_dir, 'r') as f:
@@ -62,7 +66,7 @@ class KittiDataset(Dataset):
             # Associate frames with labels
             frame_files = sorted(os.listdir(scene_image_dir))
             for frame_file in frame_files:
-                if frame_file == "cropped":
+                if not self.frameValid(frame_file):
                     continue
                 
                 frame_idx = int(os.path.splitext(frame_file)[0])
@@ -95,6 +99,26 @@ class KittiDataset(Dataset):
 
         return image, torch.cat([bboxes, class_ids.unsqueeze(1)], dim=1)
 
+
+    def sceneValid(self, scene):
+        _, file_extension = os.path.splitext(scene)
+        file_extension = file_extension.lower()
+
+        if scene == ".DS_Store":
+            return False
+
+        return True
+
+    def frameValid(self, frame):
+        _, file_extension = os.path.splitext(frame)
+        file_extension = file_extension.lower()
+
+        if frame == ".DS_Store":
+            return False
+        elif frame == "cropped":
+            return False
+
+        return True
 
     def cropImage(self, imagePath, croppedImagePath):
         # Load the image
