@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import pathlib
 from data_processing_cifar import DataProcessing
 from data_processing_kitti import DataProcessorKitti
+from evalutation import compute_loss
 
 class SolverKitti(object):
     def __init__(self, **kwargs):
@@ -163,7 +164,7 @@ class SolverKitti(object):
             # Parsing data from enumerated data
             data_tensors = [item[0] for item in data]
             target = [item[1] for item in data]
-            data = torch.stack(data_tensors)
+            data = (torch.stack(data_tensors))
                 
             # Log start time of this batch training
             start_batch = time.time()
@@ -246,6 +247,7 @@ class SolverKitti(object):
         
         output = None
         loss = None
+        acc = None
         
         # If in training mode, update weights, otherwise do not
         if self.model.training:
@@ -253,8 +255,10 @@ class SolverKitti(object):
             # Call the forward pass on the model. The data model() automatically calls model.forward()
             output = self.model(data)
 
+            output = output.reshape((self.batch_size, 114, 2, 4, 5))  # hardcoded: batch * 6 * 19 * 2 * 4 * 5
+
             # Calculate loss
-            loss = self.LossCalc(output, target)
+            loss, acc = self.LossCalc(output, target)
             
             # Main backward pass to Update gradients
             self.optimizer.zero_grad()
@@ -268,20 +272,17 @@ class SolverKitti(object):
                 output = self.model(data)
                 loss = self.criterion(output, target)
 
-        # Calculate accuracy
-        batch_size = target.shape[0]
-        _, pred = torch.max(output, dim=-1) # Finding the class with the highest score
-        correct = pred.eq(target).sum() * 1.0 # Count the number of correct predictions
-        acc = correct / batch_size
-
         return output, loss, acc
     
     def LossCalc(self, output, target):
         '''
         Calcualtes the loss for the kitti dataset model output
         '''
-        
-        loss = self.criterion(output,target)
+
+        # assumes num of classes is 4 but can be customized using last parameter
+        loss, class_accuracy = compute_loss(output, target)
+
+        return loss, class_accuracy
         
     def plot(self, loss):
         '''

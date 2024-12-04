@@ -1,5 +1,5 @@
 Train:
-  batch_size: 5 # 5 for kitti and 100 for cifar works
+  batch_size: 1 # 5 for kitti and 100 for cifar works
   learning_rate: 0.005
   reg: 0
   epochs: 15

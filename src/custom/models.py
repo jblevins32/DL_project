@@ -186,14 +186,14 @@ class MyModel(nn.Module):
                 
                 nn.Conv2d(1024, 1024, kernel_size=3, stride=1, padding=1), # 1024x23x76
                 nn.Conv2d(1024, 1024, kernel_size=3, stride=2, padding=1), # 1024x11x38
-                nn.Conv2d(1024, 1024, kernel_size=3, stride=2, padding=1), # 1024x7x7
+                nn.Conv2d(1024, 1024, kernel_size=3, stride=2, padding=1), # 1024x6x19
             )
         
             # for KITTI object detection, out should be [batch_size, num_objects_Detected, 5]
             self.fully_connected = nn.Sequential(
                 nn.Flatten(),
-                nn.Linear(6*19*1024, 4096), # 7x7 is the grid placed on the image
-                nn.Linear(4096, 6*19*14) # (2 bounding boxes per cell * 5 coordinates and confidence score) + 4 number of classes = 14
+                nn.Linear(6*19*1024, 6*19*2*4*5), # 6x19 is the grid placed on the image
+                # nn.Linear(4560, 6*19*2*4*5) # (2 bounding boxes per cell * 4 coordinates and 1 confidence score) + 4 number of classes = 14
             )
             
         # Print the number of training parameters in the model
