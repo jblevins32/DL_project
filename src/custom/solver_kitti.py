@@ -254,7 +254,7 @@ class SolverKitti(object):
             output = self.model(data)
 
             # Calculate loss
-            loss = self.criterion(output,target)
+            loss = self.LossCalc(output, target)
             
             # Main backward pass to Update gradients
             self.optimizer.zero_grad()
@@ -275,6 +275,13 @@ class SolverKitti(object):
         acc = correct / batch_size
 
         return output, loss, acc
+    
+    def LossCalc(self, output, target):
+        '''
+        Calcualtes the loss for the kitti dataset model output
+        '''
+        
+        loss = self.criterion(output,target)
         
     def plot(self, loss):
         '''
