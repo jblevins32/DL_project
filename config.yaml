@@ -7,5 +7,5 @@ Train:
   warmup: 0
   momentum: 0.9
   gamma: 1
-  model_type: "customcnn" # linear, alexnet, resnet, customcnn, customcnn_kitti
+  model_type: "customcnn_kitti" # linear, alexnet, resnet, customcnn, customcnn_kitti
   data_type: "kitti" # cifar, kitti
