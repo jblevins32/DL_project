@@ -9,7 +9,7 @@ import pathlib
 from data_processing_cifar import DataProcessing
 from data_processing_kitti import DataProcessorKitti
 
-class Solver(object):
+class SolverKitti(object):
     def __init__(self, **kwargs):
         '''
         Class for managing the training of deep learning models
@@ -38,7 +38,7 @@ class Solver(object):
         
         # Define the data
         if self.data_type == "cifar":
-            self.train_loader1, self.val_loader1, self.test_dataset1 = DataProcessing(self.batch_size)
+            self.train_loader, self.val_loader, self.test_dataset = DataProcessing(self.batch_size)
         elif self.data_type == "kitti": 
             self.train_loader, self.val_loader, self.test_dataset = DataProcessorKitti(self.batch_size)
 
@@ -158,14 +158,20 @@ class Solver(object):
         cm = torch.zeros(num_class, num_class)
 
         # Train on training data by batch. Note: enumerate() provides both the idx and data
-        for idx, (data, target) in enumerate(data_loader):
+        for idx, data in enumerate(data_loader):
             
+            # Parsing data from enumerated data
+            data_tensors = [item[0] for item in data]
+            target = [item[1] for item in data]
+            data = torch.stack(data_tensors)
+                
             # Log start time of this batch training
             start_batch = time.time()
             
             # Gather data to be trained on the chosen device
             data = data.to(self.device)
-            target = target.to(self.device)
+            for idx, label in enumerate(target):
+                target[idx] = label.to(self.device)
 
             # Get loss, accuracy, and update the model
             out, loss, batch_acc = self.ComputeLossAccUpdateParams(data, target)

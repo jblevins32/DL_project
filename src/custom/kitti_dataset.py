@@ -57,7 +57,7 @@ class KittiDataset(Dataset):
                 if class_id != -1:
                     if frame_idx not in frame_labels:
                         frame_labels[frame_idx] = []
-                    frame_labels[frame_idx].append([bbox, class_id])
+                    frame_labels[frame_idx].append({"bbox": bbox, "class_id": class_id})
 
             # Associate frames with labels
             frame_files = sorted(os.listdir(scene_image_dir))
@@ -90,10 +90,10 @@ class KittiDataset(Dataset):
             image = self.transform(image)
 
         # Format the labels
-        bboxes = torch.tensor([label[["bbox"]] for label in sample["labels"]], dtype=torch.float32)
+        bboxes = torch.tensor([label["bbox"] for label in sample["labels"]], dtype=torch.float32)
         class_ids = torch.tensor([label["class_id"] for label in sample["labels"]], dtype=torch.long)
 
-        return image, {"bboxes": bboxes, "class_ids": class_ids}
+        return image, torch.cat([bboxes, class_ids.unsqueeze(1)], dim=1)
 
 
     def cropImage(self, imagePath, croppedImagePath):

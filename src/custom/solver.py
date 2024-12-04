@@ -158,20 +158,7 @@ class Solver(object):
         cm = torch.zeros(num_class, num_class)
 
         # Train on training data by batch. Note: enumerate() provides both the idx and data
-        for idx, data in enumerate(data_loader):
-            
-            data_tensors = [item[0] for item in data]
-            label_dicts = [item[1] for item in data]
-            data = torch.stack(data_tensors)
-            targets = torch.stack(label_dicts)
-            
-            # if the data is not in the correct shape for the model
-            if not tuple(data[0]): 
-                target = data[1]
-                data = data[0]
-            else:
-                target = data[0][1]
-                data = data[0][0]
+        for idx, (data, target) in enumerate(data_loader):
                 
             # Log start time of this batch training
             start_batch = time.time()
