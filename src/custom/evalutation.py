@@ -1,168 +1,191 @@
 import torch
 import torch.nn as nn
-from torchvision.ops import box_iou
-from scipy.optimize import linear_sum_assignment
-
-def compute_loss(predictions, targets, num_classes=4):
-    """
-        Compute the YOLO loss and class accuracy for per-class bounding box predictions.
-
-        Args:
-            predictions (torch.Tensor): Model predictions of shape (1, 114, 2, 4, 5)
-            targets (torch.Tensor): Ground truth labels of shape (N_objects, 5)
-            num_classes (int): Number of classes (4)
-            img_size (tuple): Image size (height, width)
-            conf_threshold (float): Confidence score threshold for considering a prediction
-            iou_threshold (float): IoU threshold for a correct prediction
-
-        Returns:
-            total_loss (torch.Tensor): Computed loss for the image
-            class_accuracy (float): Class accuracy as a fraction of correctly predicted objects
-        """
-    device = predictions.device
-
-    # Remove batch dimension (batch_size=1)
-    predictions = predictions.squeeze(0)  # Shape: (114, 2, 4, 5)
-    targets = targets[0]
-
-    conf_threshold = 0.8
-    iou_threshold = 0.5
-
-    grid_h, grid_w = 6, 19
-    img_size = (365, 1220)
-    num_cells = grid_h * grid_w  # Should be 114
-    num_anchors = 2
-
-    # Verify the number of cells matches
-    assert predictions.shape[0] == num_cells, "Number of cells does not match grid dimensions."
-
-    # Initialize target tensor
-    target_tensor = torch.zeros_like(predictions, device=device)
-
-    # Calculate stride (pixels per grid cell)
-    stride_x = img_size[1] / grid_w  # Width stride
-    stride_y = img_size[0] / grid_h  # Height stride
-
-    # Build grid cell coordinates
-    grid_indices = [(i // grid_w, i % grid_w) for i in range(num_cells)]
-
-    # Counters for accuracy calculation
-    correct_predictions = 0
-    total_objects = targets.shape[0]
-
-    # For each ground truth object
-    for gt in targets:
-        left, top, right, bottom, class_id = gt
-        class_id = int(class_id)
-
-        # Compute ground truth bounding box center, width, and height
-        x_center = (left + right) / 2.0
-        y_center = (top + bottom) / 2.0
-        w = right - left
-        h = bottom - top
-
-        # Determine which grid cell the center falls into
-        cell_x = int(x_center / stride_x)
-        cell_y = int(y_center / stride_y)
-
-        # Handle edge cases
-        if cell_x >= grid_w:
-            cell_x = grid_w - 1
-        if cell_y >= grid_h:
-            cell_y = grid_h - 1
-
-        # Determine grid cell index
-        cell_index = cell_y * grid_w + cell_x
-
-        # For each anchor box
-        for anchor_idx in range(num_anchors):
-            # For the specific class, set target values
-            # Set bounding box coordinates
-            target_tensor[cell_index, anchor_idx, class_id, 0] = left
-            target_tensor[cell_index, anchor_idx, class_id, 1] = top
-            target_tensor[cell_index, anchor_idx, class_id, 2] = right
-            target_tensor[cell_index, anchor_idx, class_id, 3] = bottom
-            # Set confidence score to 1
-            target_tensor[cell_index, anchor_idx, class_id, 4] = 1.0
-            # Assume only one anchor is responsible; break after setting one
-            break  # Remove this line if multiple anchors can be responsible
-
-        # Accuracy calculation
-        # Get the predicted bounding boxes and confidence scores for this cell, anchor, and class
-        pred_bboxes = predictions[cell_index, :, class_id, 0:4]  # Shape: (num_anchors, 4)
-        pred_confs = predictions[cell_index, :, class_id, 4]  # Shape: (num_anchors,)
-
-        # Apply sigmoid to confidence scores to get probabilities between 0 and 1
-        pred_confs = torch.sigmoid(pred_confs)
-
-        # Select the anchor with the highest confidence score
-        max_conf, max_conf_idx = torch.max(pred_confs, dim=0)
-        pred_bbox = pred_bboxes[max_conf_idx]
-
-        # Only consider predictions with confidence above the threshold
-        if max_conf >= conf_threshold:
-            # Compute IoU between predicted bbox and ground truth bbox
-            iou = bbox_iou(pred_bbox, torch.tensor([left, top, right, bottom], device=device))
-
-            if iou >= iou_threshold:
-                correct_predictions += 1
-
-    # Calculate class accuracy
-    class_accuracy = correct_predictions / total_objects if total_objects > 0 else 0.0
-
-    # Masks
-    obj_mask = target_tensor[..., 4] == 1.0  # Object mask
-    noobj_mask = target_tensor[..., 4] == 0.0  # No-object mask
-
-    # Localization Loss (only for objects)
-    mse_loss = nn.MSELoss(reduction='sum')
-    loc_loss = mse_loss(predictions[obj_mask][..., 0:4], target_tensor[obj_mask][..., 0:4])
-
-    # Confidence Loss
-    bce_loss_conf = nn.BCEWithLogitsLoss(reduction='sum')
-    conf_loss_obj = bce_loss_conf(predictions[obj_mask][..., 4], target_tensor[obj_mask][..., 4])
-    conf_loss_noobj = bce_loss_conf(predictions[noobj_mask][..., 4], target_tensor[noobj_mask][..., 4])
-
-    # Total Loss
-    lambda_coord = 5.0
-    lambda_noobj = 0.5
-    total_loss = (lambda_coord * loc_loss) + conf_loss_obj + (lambda_noobj * conf_loss_noobj)
-
-    print(total_loss)
-
-    return total_loss, class_accuracy
-
 
 def bbox_iou(box1, box2):
     """
     Computes IoU between two bounding boxes in [left, top, right, bottom] format.
-
-    Args:
-        box1 (torch.Tensor): Predicted bounding box, shape (4,)
-        box2 (torch.Tensor): Ground truth bounding box, shape (4,)
-
-    Returns:
-        iou (float): Intersection over Union value
     """
-    # Intersection coordinates
     inter_left = torch.max(box1[0], box2[0])
     inter_top = torch.max(box1[1], box2[1])
     inter_right = torch.min(box1[2], box2[2])
     inter_bottom = torch.min(box1[3], box2[3])
 
-    # Intersection area
     inter_width = torch.clamp(inter_right - inter_left, min=0)
     inter_height = torch.clamp(inter_bottom - inter_top, min=0)
     inter_area = inter_width * inter_height
 
-    # Areas of the bounding boxes
     area1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
     area2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union_area = area1 + area2 - inter_area + 1e-16
 
-    # Union area
-    union_area = area1 + area2 - inter_area + 1e-16  # Avoid division by zero
-
-    # IoU
     iou = inter_area / union_area
-
     return iou.item()
+
+def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365, 1220),
+                             grid_h=6, grid_w=19, conf_threshold=0.8, iou_threshold=0.5):
+    """
+    Compute loss and accuracy for a single image.
+
+    Args:
+        predictions (torch.Tensor): (num_cells, num_anchors, 9)
+                                    9 = [x, y, w, h, conf, class1, class2, class3, class4]
+        targets (torch.Tensor): (N_objects, 5) [left, top, right, bottom, class_id]
+        num_classes (int): number of classes
+        img_size (tuple): (height, width)
+        grid_h (int), grid_w (int): grid dimensions
+        conf_threshold (float)
+        iou_threshold (float)
+
+    Returns:
+        loss (torch.Tensor): Scalar loss for this image
+        correct_predictions (int): Number of correctly predicted objects
+        total_objects (int): Number of ground-truth objects
+    """
+
+    device = predictions.device
+    num_cells = grid_h * grid_w
+    num_anchors = predictions.shape[1]
+    assert predictions.shape == (num_cells, num_anchors, 9), "Prediction shape mismatch."
+
+    img_h, img_w = img_size
+
+    # Sigmoid for coords and conf as needed
+    predictions[..., 0:4] = torch.sigmoid(predictions[..., 0:4])
+
+    # Normalize targets
+    normalized_targets = targets.clone().to(device)
+    if normalized_targets.numel() > 0:
+        normalized_targets[:, [0, 2]] /= img_w
+        normalized_targets[:, [1, 3]] /= img_h
+
+    # Initialize target tensor
+    # shape: (num_cells, num_anchors, 9)
+    # 0:4 -> box coords, 4 -> conf, 5:9 -> one-hot classes
+    target_tensor = torch.zeros_like(predictions, device=device)
+
+    correct_predictions = 0
+    total_objects = normalized_targets.shape[0]
+
+    # Assign targets to grid
+    for gt in normalized_targets:
+        left_norm, top_norm, right_norm, bottom_norm, class_id = gt
+        class_id = int(class_id)
+
+        x_center = (left_norm + right_norm) / 2.0
+        y_center = (top_norm + bottom_norm) / 2.0
+
+        cell_x = int(x_center * grid_w)
+        cell_y = int(y_center * grid_h)
+
+        # Handle edges
+        if cell_x >= grid_w:
+            cell_x = grid_w - 1
+        if cell_y >= grid_h:
+            cell_y = grid_h - 1
+
+        cell_index = cell_y * grid_w + cell_x
+
+        # Assign to first anchor for simplicity
+        target_tensor[cell_index, 0, 0] = left_norm
+        target_tensor[cell_index, 0, 1] = top_norm
+        target_tensor[cell_index, 0, 2] = right_norm
+        target_tensor[cell_index, 0, 3] = bottom_norm
+        target_tensor[cell_index, 0, 4] = 1.0
+
+        # One-hot class
+        class_vec = torch.zeros(num_classes, device=device)
+        class_vec[class_id] = 1.0
+        target_tensor[cell_index, 0, 5:5+num_classes] = class_vec
+
+        # Accuracy calculation
+        cell_pred = predictions[cell_index]  # (num_anchors, 9)
+        pred_bboxes = cell_pred[:, 0:4]
+        pred_confs = torch.sigmoid(cell_pred[:, 4])
+        pred_classes = torch.softmax(cell_pred[:, 5:5+num_classes], dim=-1)
+
+        max_conf, max_conf_idx = torch.max(pred_confs, dim=0)
+        pred_bbox = pred_bboxes[max_conf_idx]
+
+        pred_left = pred_bbox[0] * img_w
+        pred_top = pred_bbox[1] * img_h
+        pred_right = pred_bbox[2] * img_w
+        pred_bottom = pred_bbox[3] * img_h
+
+        if max_conf >= conf_threshold:
+            iou = bbox_iou(
+                torch.tensor([pred_left, pred_top, pred_right, pred_bottom], device=device),
+                torch.tensor([gt[0]*img_w, gt[1]*img_h, gt[2]*img_w, gt[3]*img_h], device=device)
+            )
+            if iou >= iou_threshold:
+                pred_class_id = torch.argmax(pred_classes[max_conf_idx]).item()
+                if pred_class_id == class_id:
+                    correct_predictions += 1
+
+    # Masks
+    obj_mask = target_tensor[..., 4] == 1.0
+    noobj_mask = target_tensor[..., 4] == 0.0
+
+    # Loss functions
+    loc_loss_fn = nn.SmoothL1Loss(reduction='sum')
+    bce_loss_conf = nn.BCEWithLogitsLoss(reduction='sum')
+    bce_loss_class = nn.BCEWithLogitsLoss(reduction='sum')
+
+    # Localization loss
+    loc_loss = loc_loss_fn(predictions[obj_mask][..., 0:4], target_tensor[obj_mask][..., 0:4])
+
+    # Confidence loss
+    conf_loss_obj = bce_loss_conf(predictions[obj_mask][..., 4], target_tensor[obj_mask][..., 4])
+    conf_loss_noobj = bce_loss_conf(predictions[noobj_mask][..., 4], target_tensor[noobj_mask][..., 4])
+
+    # Class loss
+    class_loss = bce_loss_class(predictions[obj_mask][..., 5:5+num_classes], target_tensor[obj_mask][..., 5:5+num_classes])
+
+    lambda_coord = 5.0
+    lambda_noobj = 0.5
+    lambda_class = 1.0
+
+    total_loss = (lambda_coord * loc_loss) + conf_loss_obj + (lambda_noobj * conf_loss_noobj) + (lambda_class * class_loss)
+    return total_loss, correct_predictions, total_objects
+
+
+def compute_loss(predictions, targets, num_classes=4):
+    """
+    Compute the YOLO-style loss and class accuracy for a batch of images.
+
+    Args:
+        predictions (torch.Tensor): (batch_size, num_cells, num_anchors, 9)
+        targets (torch.Tensor): (batch_size, N_objects, 5)
+
+    Returns:
+        total_loss (torch.Tensor): Loss averaged over the batch
+        class_accuracy (float): Accuracy over all objects in the batch
+    """
+    device = predictions.device
+    batch_size = predictions.size(0)
+
+    total_loss_batch = torch.zeros(1, device=device, requires_grad=True)
+    total_correct = 0
+    total_objects = 0
+
+    for b in range(batch_size):
+        # predictions for single image: (num_cells, num_anchors, 9)
+        pred_single = predictions[b]
+        target_single = targets[b]  # (N_objects, 5)
+
+        loss_b, correct_b, objects_b = compute_loss_single_image(
+            pred_single, target_single, num_classes=num_classes
+        )
+
+        if b == 0:
+            total_loss_batch = loss_b
+        else:
+            total_loss_batch = total_loss_batch + loss_b
+
+        total_correct += correct_b
+        total_objects += objects_b
+
+    # Average loss over the batch
+    avg_loss = total_loss_batch / batch_size
+    class_accuracy = total_correct / total_objects if total_objects > 0 else 0.0
+
+    return avg_loss, class_accuracy

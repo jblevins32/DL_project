@@ -9,6 +9,9 @@ import pathlib
 from data_processing_cifar import DataProcessing
 from data_processing_kitti import DataProcessorKitti
 from evalutation import compute_loss
+from src.custom.SimpleYOLO import SimpleYOLO
+from torchinfo import summary
+
 
 class SolverKitti(object):
     def __init__(self, **kwargs):
@@ -44,7 +47,8 @@ class SolverKitti(object):
             self.train_loader, self.val_loader, self.test_dataset = DataProcessorKitti(self.batch_size)
 
         # Define the NN model
-        self.model = MyModel(self.model_type, self.batch_size)
+        self.model = SimpleYOLO()
+        summary(self.model, input_size=(1, 3, 365, 1220))
         # print(self.model)
 
         # Define the optimizer
@@ -136,102 +140,109 @@ class SolverKitti(object):
         fig_name_eps = f'figs/loss_{loss:.4f}.eps'
         plt.savefig(fig_name_png)
         plt.savefig(fig_name_eps)
-    
+
     def MainLoop(self, epoch, data_loader):
         '''
-        This function generically runs data through the model, for training, eval, or testing
-        
+        Runs a single pass (train or eval) through the provided data_loader.
+        In training mode, updates model parameters. In eval mode, computes accuracy and confusion matrix.
+
         Args:
-            model
-            data
-            
+            epoch (int): Current epoch number
+            data_loader (DataLoader): PyTorch DataLoader for either training or validation set
+
         Returns:
-            
+            If training: Returns the average loss for the epoch
+            If not training: Returns the accuracy and confusion matrix for the epoch
         '''
-        
-        # Initialize a meter for printing info to terminal
+
+        # Initialize meters for timing, loss, and accuracy
         iter_time = AverageMeter()
         losses = AverageMeter()
         acc = AverageMeter()
-        
-        # Validation stuff
+
+        # Initialize confusion matrix (used during validation)
         num_class = 10
-        cm = torch.zeros(num_class, num_class)
+        cm = torch.zeros(num_class, num_class, device=self.device)
 
-        # Train on training data by batch. Note: enumerate() provides both the idx and data
-        for idx, data in enumerate(data_loader):
-            
-            # Parsing data from enumerated data
-            data_tensors = [item[0] for item in data]
-            target = [item[1] for item in data]
-            data = (torch.stack(data_tensors))
-                
-            # Log start time of this batch training
+        # Determine if we are in training or evaluation mode
+        is_training = self.model.training
+
+        for batch_idx, batch_data in enumerate(data_loader):
+
+            # batch_data should be something like a list/tuple of items where each item is (image, label)
+            # Extract images and targets
+            images = [item[0] for item in batch_data]
+            targets = [item[1] for item in batch_data]
+
+            # Stack images into a single tensor
+            images = torch.stack(images).to(self.device)
+            # Move targets to the device
+            targets = [t.to(self.device) for t in targets]
+
+            # Record start time
             start_batch = time.time()
-            
-            # Gather data to be trained on the chosen device
-            data = data.to(self.device)
-            for idx, label in enumerate(target):
-                target[idx] = label.to(self.device)
 
-            # Get loss, accuracy, and update the model
-            out, loss, batch_acc = self.ComputeLossAccUpdateParams(data, target)
-            
-            # Update and print the average loss and accuracy for this epoch
-            losses.update(loss.item(), out.shape[0]) # .item() extracts the floating number from the tensor type
-            acc.update(batch_acc, out.shape[0])
+            # Compute outputs, loss, and accuracy
+            out, loss, batch_acc = self.ComputeLossAccUpdateParams(images, targets)
+
+            # Update metrics
+            batch_size = out.shape[0]
+            losses.update(loss.item(), batch_size)
+            acc.update(batch_acc, batch_size)
             iter_time.update(time.time() - start_batch)
-                
-            if self.model.training:
-                if idx % 10 == 0:
-                    print(
-                        (
-                            "Epoch: [{0}][{1}/{2}]\t"
-                            "Time {iter_time.val:.3f} ({iter_time.avg:.3f})\t"
-                            "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
-                            "Prec @1 {top1.val:.4f} ({top1.avg:.4f})\t"
-                        ).format(
-                            epoch,
-                            idx,
-                            len(data_loader),
-                            iter_time=iter_time,
-                            loss=losses,
-                            top1=acc,
-                        )
-                    )
-                
-            else:
-                # update confusion matrix
-                _, preds = torch.max(out, 1)
-                for t, p in zip(target.view(-1), preds.view(-1)):
-                    cm[t.long(), p.long()] += 1
 
-                if idx % 10 == 0:
+            if is_training:
+                # Print training status every 10 batches
+                if batch_idx % 10 == 0:
                     print(
-                        (
-                            "Epoch: [{0}][{1}/{2}]\t"
-                            "Time {iter_time.val:.3f} ({iter_time.avg:.3f})\t"
-                        ).format(
-                            epoch,
-                            idx,
-                            len(data_loader),
-                            iter_time=iter_time,
-                            loss=losses,
-                            top1=acc,
+                        "Epoch: [{0}][{1}/{2}]\t"
+                        "Time {iter_time.val:.3f} ({iter_time.avg:.3f})\t"
+                        "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
+                        "Prec @1 {top1.val:.4f} ({top1.avg:.4f})"
+                        .format(
+                            epoch, batch_idx, len(data_loader),
+                            iter_time=iter_time, loss=losses, top1=acc
                         )
                     )
-        if self.model.training:
+            else:
+                # Update confusion matrix if evaluating
+                # out is expected to be a class prediction tensor; adjust if needed
+                with torch.no_grad():
+                    _, preds = torch.max(out, 1)
+                    for t, p in zip(torch.cat(targets).view(-1), preds.view(-1)):
+                        cm[t.long(), p.long()] += 1
+
+                # Print evaluation status every 10 batches
+                if batch_idx % 10 == 0:
+                    print(
+                        "Epoch: [{0}][{1}/{2}]\t"
+                        "Time {iter_time.val:.3f} ({iter_time.avg:.3f})"
+                        .format(
+                            epoch, batch_idx, len(data_loader),
+                            iter_time=iter_time
+                        )
+                    )
+
+            # Optionally clear large tensors if needed
+            # del out, loss  # Uncomment if you want to ensure memory release after each iteration
+
+        if is_training:
+            # Return the average loss during training
             return losses.avg
-        
         else:
-            cm = cm / cm.sum(1)
-            per_cls_acc = cm.diag().detach().numpy().tolist()
+            # Compute accuracy per class, print results
+            cm_sum = cm.sum(dim=1, keepdim=True)
+            # Avoid division by zero
+            cm_sum[cm_sum == 0] = 1.0
+            cm_norm = cm / cm_sum
+            per_cls_acc = cm_norm.diag().detach().cpu().numpy().tolist()
+
             for i, acc_i in enumerate(per_cls_acc):
                 print("Accuracy of Class {}: {:.4f}".format(i, acc_i))
 
             print("* Prec @1: {top1.avg:.4f}".format(top1=acc))
             return acc.avg, cm
-    
+
     def ComputeLossAccUpdateParams(self, data, target):
         '''
         Computee the loss, update gradients, and get the output of the model
@@ -253,9 +264,9 @@ class SolverKitti(object):
         if self.model.training:
 
             # Call the forward pass on the model. The data model() automatically calls model.forward()
-            output = self.model(data)
+            pred = self.model(data)
 
-            output = output.reshape((self.batch_size, 114, 2, 4, 5))  # hardcoded: batch * 6 * 19 * 2 * 4 * 5
+            output = pred.view(self.batch_size, 114, 2, 9)
 
             # Calculate loss
             loss, acc = self.LossCalc(output, target)
