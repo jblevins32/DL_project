@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 
-def DataProcessorKitti(batch_size, training_split_percentage=0.8):
+def DataProcessorKitti(batch_size, training_split_percentage=0.8, dataset_percentage=1.0):
 
     dataDownloader = KittiDataDownloader()
     dataDownloader.prepareDataset()
@@ -22,7 +22,9 @@ def DataProcessorKitti(batch_size, training_split_percentage=0.8):
     dataset = KittiDataset(image_dir=image_dir, label_dir=label_dir, transform=transform)
 
     # Split indices for train, validation, and test
-    total_indices = list(range(len(dataset)))
+
+    dataset_cutoff_idx = int(len(dataset) * dataset_percentage)
+    total_indices = list(range(dataset_cutoff_idx))
     train_indices, val_test_indices = train_test_split(total_indices,
                                                        test_size=1.0-training_split_percentage,
                                                        random_state=42)

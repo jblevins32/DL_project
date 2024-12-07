@@ -40,13 +40,15 @@ class SolverKitti(object):
         self.model_type = kwargs.pop("model_type", "linear")
         self.data_type = kwargs.pop("data_type", "cifar")
         self.training_split_percentage = kwargs.pop("training_split_percentage", 0.8)
+        self.dataset_percentage = kwargs.pop("dataset_percentage", 1.0)
         
         # Define the data
         if self.data_type == "cifar":
             self.train_loader, self.val_loader, self.test_dataset = DataProcessing(self.batch_size)
         elif self.data_type == "kitti": 
             self.train_loader, self.val_loader, self.test_dataset = DataProcessorKitti(self.batch_size,
-                                                                                       self.training_split_percentage)
+                                                                                       self.training_split_percentage,
+                                                                                       self.dataset_percentage)
 
         # Define the NN model
         self.model = SimpleYOLO()
@@ -208,10 +210,10 @@ class SolverKitti(object):
             else:
                 # Update confusion matrix if evaluating
                 # out is expected to be a class prediction tensor; adjust if needed
-                with torch.no_grad():
-                    _, preds = torch.max(out, 1)
-                    for t, p in zip(torch.cat(targets).view(-1), preds.view(-1)):
-                        cm[t.long(), p.long()] += 1
+                # with torch.no_grad():
+                #     _, preds = torch.max(out, 1)
+                #     for t, p in zip(torch.cat(targets).view(-1), preds.view(-1)):
+                #         cm[t.long(), p.long()] += 1
 
                 # Print evaluation status every 10 batches
                 if batch_idx % 10 == 0:
@@ -231,15 +233,15 @@ class SolverKitti(object):
             # Return the average loss during training
             return losses.avg
         else:
-            # Compute accuracy per class, print results
-            cm_sum = cm.sum(dim=1, keepdim=True)
-            # Avoid division by zero
-            cm_sum[cm_sum == 0] = 1.0
-            cm_norm = cm / cm_sum
-            per_cls_acc = cm_norm.diag().detach().cpu().numpy().tolist()
-
-            for i, acc_i in enumerate(per_cls_acc):
-                print("Accuracy of Class {}: {:.4f}".format(i, acc_i))
+            # # Compute accuracy per class, print results
+            # cm_sum = cm.sum(dim=1, keepdim=True)
+            # # Avoid division by zero
+            # cm_sum[cm_sum == 0] = 1.0
+            # cm_norm = cm / cm_sum
+            # per_cls_acc = cm_norm.diag().detach().cpu().numpy().tolist()
+            #
+            # for i, acc_i in enumerate(per_cls_acc):
+            #     print("Accuracy of Class {}: {:.4f}".format(i, acc_i))
 
             print("* Prec @1: {top1.avg:.4f}".format(top1=acc))
             return acc.avg, cm
@@ -281,8 +283,9 @@ class SolverKitti(object):
             
             # Do not update gradients
             with torch.no_grad():
-                output = self.model(data)
-                loss, acc = self.LossCalc(output, target)
+                pred = self.model(data)
+                output = pred.view(self.batch_size, 114, 2, 9)
+                loss, acc = compute_loss(output, target)
 
         return output, loss, acc
         
