@@ -6,7 +6,7 @@ import copy
 from models import MyModel
 import matplotlib.pyplot as plt
 import pathlib
-from data_processing_cifar import DataProcessing
+from data_processing_cifar import DataProcessorCIFAR
 from data_processing_kitti import DataProcessorKitti
 
 class Solver(object):

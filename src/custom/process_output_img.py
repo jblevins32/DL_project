@@ -18,8 +18,13 @@ def ProcessOutputImg(img, output, truth):
     
     output = output.reshape(114,2,9)
     
-    # Loop over gridboxes in output to find top confidence bboxes
-    conf_mask = output[:,:,4]
+    # Find gridboxes in output with some confidence
+    conf_level = 0.8 # This is the min confidence we want our bbox model to be
+    conf_mask = output[:,:,4] > conf_level
+    
+    resulting_boxes = output[conf_mask]
+    
+    test=1
     
 def ShowResults(img, output):
     '''

@@ -9,7 +9,7 @@ import copy
 from models import MyModel
 import matplotlib.pyplot as plt
 import pathlib
-from data_processing_cifar import DataProcessing
+from data_processing_cifar import DataProcessorCIFAR
 from data_processing_kitti import DataProcessorKitti
 from evalutation import compute_loss
 from SimpleYOLO import SimpleYOLO
@@ -326,6 +326,16 @@ class SolverKitti(object):
         plt.ylabel('Loss')
         plt.title('Training Loss Over Time')
         plt.pause(0.0000001)
+        
+        fig_dir = "./figs"
+        if not os.path.exists(fig_dir):
+            os.makedirs(fig_dir)
+            
+        fig_name_png = f'figs/loss.png'
+        fig_name_eps = f'figs/loss.eps'
+        plt.savefig(fig_name_png)
+        plt.savefig(fig_name_eps)
+            
     
     def _adjust_learning_rate(self, epoch):
         if isinstance(self.optimizer, torch.optim.SGD):
