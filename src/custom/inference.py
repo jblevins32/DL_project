@@ -8,8 +8,7 @@ import yaml
 from data_processing_cifar import DataProcessorCIFAR
 from data_processing_kitti import DataProcessorKitti
 from load_args import LoadArgs
-import matplotlib.pyplot as plt
-from process_output_img import ProcessOutputImg
+from process_output_img import *
 
 # Load arguments from config file
 kwargs = LoadArgs()
@@ -35,7 +34,7 @@ model.eval()
 if data_type == "cifar":
   _,_,test_dataset = DataProcessorCIFAR(batch_size)
 elif data_type == "kitti":
-  _,_,test_dataset = DataProcessorKitti(batch_size, training_split_percentage=0.8, dataset_percentage=1.0)
+  _,_,test_dataset = DataProcessorKitti(batch_size, training_split_percentage, dataset_percentage)
 
 # This is grabbing an input image from the directory
 # image_path = str(basedir) + "/src/custom/input_media/bird.jpg"
@@ -43,7 +42,7 @@ elif data_type == "kitti":
 # input_tensor = preprocess(input_rgb).unsqueeze(0)
 
 img = test_dataset[0][0]
-truth = test_dataset[0][1]
+label = test_dataset[0][1] # (n,5) = number of boxes, 4 bbox coords and 1 class ID
 input_tensor = img.unsqueeze(0)
 
 # Run inference
@@ -51,11 +50,12 @@ with torch.no_grad():
   output = model(input_tensor)
   
 # Process output kitti
-ProcessOutputImg(img, output, truth)
+# ShowResults(img, output)
+ProcessOutputImg(img, output, label, num_classes = 4)
 
 test=1
   
-# Process output
+# Process output cifar input image from the directory
 # probs = torch.nn.functional.softmax(output[0],dim=0)
 # prediction = probs.argmax().item()
 

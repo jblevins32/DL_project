@@ -1,25 +1,50 @@
 import torch
 import torch.nn as nn
 
-def bbox_iou(box1, box2):
+def compute_loss(predictions, targets, num_classes=4):
     """
-    Computes IoU between two bounding boxes in [left, top, right, bottom] format.
+    Compute the YOLO-style loss and class accuracy for a batch of images.
+
+    Args:
+        predictions (torch.Tensor): (batch_size, num_cells, num_anchors, 9)... this is the output of the model
+        targets (torch.Tensor): (batch_size, N_objects, 5)
+
+    Returns:
+        total_loss (torch.Tensor): Loss averaged over the batch
+        class_accuracy (float): Accuracy over all objects in the batch
     """
-    inter_left = torch.max(box1[0], box2[0])
-    inter_top = torch.max(box1[1], box2[1])
-    inter_right = torch.min(box1[2], box2[2])
-    inter_bottom = torch.min(box1[3], box2[3])
+    # import these next time
+    device = predictions.device
+    batch_size = predictions.size(0)
+    
+    # Initialize loss counters
+    total_loss_batch = torch.zeros(1, device=device, requires_grad=True)
+    total_correct = 0
+    total_objects = 0
+    
+    # Compute loss for each image in a batch one at a time
+    for b in range(batch_size):
+        # predictions for single image
+        pred_single = predictions[b] # (num_cells, num_anchors, 9)
+        target_single = targets[b]  # (N_objects, 5)
 
-    inter_width = torch.clamp(inter_right - inter_left, min=0)
-    inter_height = torch.clamp(inter_bottom - inter_top, min=0)
-    inter_area = inter_width * inter_height
+        loss_b, correct_b, objects_b = compute_loss_single_image(
+            pred_single, target_single, num_classes=num_classes
+        )
 
-    area1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
-    area2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
-    union_area = area1 + area2 - inter_area + 1e-16
+        if b == 0:
+            total_loss_batch = loss_b
+        else:
+            total_loss_batch = total_loss_batch + loss_b
 
-    iou = inter_area / union_area
-    return iou.item()
+        total_correct += correct_b
+        total_objects += objects_b
+
+    # Average loss over the batch
+    avg_loss = total_loss_batch / batch_size
+    class_accuracy = total_correct / total_objects if total_objects > 0 else 0.0
+
+    return avg_loss, class_accuracy
 
 def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365, 1220),
                              grid_h=6, grid_w=19, conf_threshold=0.8, iou_threshold=0.5):
@@ -43,18 +68,18 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     """
 
     device = predictions.device
-    num_cells = grid_h * grid_w
+    num_cells = grid_h * grid_w # generalize this
     num_anchors = predictions.shape[1] # number of bounding boxes per gridbox
     assert predictions.shape == (num_cells, num_anchors, 9), "Prediction shape mismatch."
 
     img_h, img_w = img_size
 
-    # Sigmoid for coords and conf as needed
+    # Sigmoid for bbox coords
     predictions[..., 0:4] = torch.sigmoid(predictions[..., 0:4])
 
     # Normalize targets, converting from 0 to 1
     normalized_targets = targets.clone().to(device)
-    if normalized_targets.numel() > 0:
+    if normalized_targets.numel() > 0: # Check to be sure the targets are not empty
         normalized_targets[:, [0, 2]] /= img_w
         normalized_targets[:, [1, 3]] /= img_h
 
@@ -150,47 +175,23 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     total_loss = (lambda_coord * loc_loss) + conf_loss_obj + (lambda_noobj * conf_loss_noobj) + (lambda_class * class_loss)
     return total_loss, correct_predictions, total_objects
 
-
-def compute_loss(predictions, targets, num_classes=4):
+def bbox_iou(box1, box2):
     """
-    Compute the YOLO-style loss and class accuracy for a batch of images.
-
-    Args:
-        predictions (torch.Tensor): (batch_size, num_cells, num_anchors, 9)... this is the output of the model
-        targets (torch.Tensor): (batch_size, N_objects, 5)
-
-    Returns:
-        total_loss (torch.Tensor): Loss averaged over the batch
-        class_accuracy (float): Accuracy over all objects in the batch
+    Computes IoU between two bounding boxes in [left, top, right, bottom] format.
     """
-    device = predictions.device
-    batch_size = predictions.size(0)
-    
-    # Initialize loss counters
-    total_loss_batch = torch.zeros(1, device=device, requires_grad=True)
-    total_correct = 0
-    total_objects = 0
-    
-    # Compute loss for each image in a batch one at a time
-    for b in range(batch_size):
-        # predictions for single image
-        pred_single = predictions[b] # (num_cells, num_anchors, 9)
-        target_single = targets[b]  # (N_objects, 5)
+    inter_left = torch.max(box1[0], box2[0])
+    inter_top = torch.max(box1[1], box2[1])
+    inter_right = torch.min(box1[2], box2[2])
+    inter_bottom = torch.min(box1[3], box2[3])
 
-        loss_b, correct_b, objects_b = compute_loss_single_image(
-            pred_single, target_single, num_classes=num_classes
-        )
+    inter_width = torch.clamp(inter_right - inter_left, min=0)
+    inter_height = torch.clamp(inter_bottom - inter_top, min=0)
+    inter_area = inter_width * inter_height
 
-        if b == 0:
-            total_loss_batch = loss_b
-        else:
-            total_loss_batch = total_loss_batch + loss_b
+    area1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    area2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union_area = area1 + area2 - inter_area + 1e-16
 
-        total_correct += correct_b
-        total_objects += objects_b
+    iou = inter_area / union_area
+    return iou.item()
 
-    # Average loss over the batch
-    avg_loss = total_loss_batch / batch_size
-    class_accuracy = total_correct / total_objects if total_objects > 0 else 0.0
-
-    return avg_loss, class_accuracy

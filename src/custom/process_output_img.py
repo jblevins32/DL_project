@@ -1,7 +1,8 @@
 from torchvision import transforms
 import matplotlib.pyplot as plt
+import torch
 
-def ProcessOutputImg(img, output, truth):
+def ProcessOutputImg(img, output, label, num_classes):
     '''
     Process the output image by putting the bounding boxes and classifications on the image
     
@@ -16,15 +17,23 @@ def ProcessOutputImg(img, output, truth):
     denormalize = transforms.Normalize(mean=[-0.5 / 0.5, -0.5 / 0.5, -0.5 / 0.5], std=[1 / 0.5, 1 / 0.5, 1 / 0.5])
     normal_img = denormalize(img)
     
-    output = output.reshape(114,2,9)
+    output = output.reshape(228,9)
     
+    # sigmoid or softmax everything
+    output[..., 0:5] = torch.sigmoid(output[..., 0:5])
+    output[..., 5:5+num_classes] = torch.softmax(output[:, 5:5+num_classes], dim=-1)
+
     # Find gridboxes in output with some confidence
     conf_level = 0.8 # This is the min confidence we want our bbox model to be
-    conf_mask = output[:,:,4] > conf_level
+    conf_mask = output[:,4] > conf_level
     
+    # Keep only the confident bboxes and bring them back to correct img size
     resulting_boxes = output[conf_mask]
+    resulting_boxes[:,0:4] = resulting_boxes[:,0:4]*torch.tensor([1220,365,1220,365])
     
-    test=1
+    # Get predicted class for each bbox
+    preds = resulting_boxes[:,:5]
+    preds[:,4] = torch.argmax(resulting_boxes[:,5:],dim=1)
     
 def ShowResults(img, output):
     '''
