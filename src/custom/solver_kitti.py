@@ -1,3 +1,5 @@
+import os.path
+
 import numpy as np
 import torch.nn as nn
 import time
@@ -117,19 +119,26 @@ class SolverKitti(object):
             # Validate
             self.model.eval()
             acc, cm = self.MainLoop(epoch, self.val_loader)
-            
+
             # Store best model
-            if acc > self.best:
-                self.best = acc
+            if loss < self.best: # was accuracy but accuracy is not functional yet
+                self.best = loss
                 self.best_cm = cm
+                self.best_model = copy.deepcopy(self.model)
+            elif epoch == 0:
+                self.best = loss
                 self.best_model = copy.deepcopy(self.model)
             
             if self.save_best:
-                basedir = pathlib.Path(__file__).parent.parent.parent.resolve()
-                torch.save(
-                    self.best_model.state_dict(),
-                    str(basedir) + "/models/" + self.model_type.lower() + '_loss_' + str(round(loss,3)) + ".pt",
-                )
+                model_dir = "./models"
+
+                if not os.path.exists(model_dir):
+                    os.makedirs(model_dir)
+
+                model_name = self.model_type.lower() + '_loss_' + str(round(loss,3)) + ".pt"
+                model_path = os.path.join(model_dir, model_name)
+
+                torch.save(self.best_model.state_dict(), model_path)
                 
             # Plot
             self.plot(loss)

@@ -21,3 +21,4 @@ src/.idea
 dataset
 src/custom/__pycache__
 .idea
+figs
