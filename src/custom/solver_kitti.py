@@ -1,4 +1,5 @@
 import os.path
+from math import floor
 
 import numpy as np
 import torch.nn as nn
@@ -13,6 +14,7 @@ from data_processing_kitti import DataProcessorKitti
 from evalutation import compute_loss
 from SimpleYOLO import SimpleYOLO
 from torchinfo import summary
+from datetime import datetime
 
 
 class SolverKitti(object):
@@ -102,7 +104,16 @@ class SolverKitti(object):
         
         # Log start time of training
         train_time_start_overall = time.time()
-        
+
+        model_dir = "./models"
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
+
+        # Format the time
+        current_time = datetime.now()
+        formatted_time = current_time.strftime("%d_%m-%H:%M:%S")
+        specific_model_dir = os.path.join(model_dir, formatted_time)
+
         # Main training loop
         for epoch in range(self.epochs):
             
@@ -129,14 +140,13 @@ class SolverKitti(object):
                 self.best = loss
                 self.best_model = copy.deepcopy(self.model)
             
-            if self.save_best:
-                model_dir = "./models"
+            if self.save_best and epoch > floor(self.epochs * 0.3):
 
-                if not os.path.exists(model_dir):
-                    os.makedirs(model_dir)
+                if not os.path.exists(specific_model_dir):
+                    os.makedirs(specific_model_dir)
 
-                model_name = self.model_type.lower() + '_loss_' + str(round(loss,3)) + ".pt"
-                model_path = os.path.join(model_dir, model_name)
+                model_name = self.model_type.lower() + '_loss_' + str(round(loss,3)) + "_epoch_" + str(epoch) + ".pt"
+                model_path = os.path.join(specific_model_dir, model_name)
 
                 torch.save(self.best_model.state_dict(), model_path)
                 
