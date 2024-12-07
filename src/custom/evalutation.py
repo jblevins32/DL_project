@@ -44,7 +44,7 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
 
     device = predictions.device
     num_cells = grid_h * grid_w
-    num_anchors = predictions.shape[1]
+    num_anchors = predictions.shape[1] # number of bounding boxes per gridbox
     assert predictions.shape == (num_cells, num_anchors, 9), "Prediction shape mismatch."
 
     img_h, img_w = img_size
@@ -52,7 +52,7 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     # Sigmoid for coords and conf as needed
     predictions[..., 0:4] = torch.sigmoid(predictions[..., 0:4])
 
-    # Normalize targets
+    # Normalize targets, converting from 0 to 1
     normalized_targets = targets.clone().to(device)
     if normalized_targets.numel() > 0:
         normalized_targets[:, [0, 2]] /= img_w
@@ -68,6 +68,8 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
 
     # Assign targets to grid
     for gt in normalized_targets:
+        
+        # Extract normalized coordiantes for grid target
         left_norm, top_norm, right_norm, bottom_norm, class_id = gt
         class_id = int(class_id)
 
@@ -83,6 +85,7 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
         if cell_y >= grid_h:
             cell_y = grid_h - 1
 
+        # Determine index of cell being esimated to contain this target
         cell_index = cell_y * grid_w + cell_x
 
         # Assign to first anchor for simplicity
@@ -153,7 +156,7 @@ def compute_loss(predictions, targets, num_classes=4):
     Compute the YOLO-style loss and class accuracy for a batch of images.
 
     Args:
-        predictions (torch.Tensor): (batch_size, num_cells, num_anchors, 9)
+        predictions (torch.Tensor): (batch_size, num_cells, num_anchors, 9)... this is the output of the model
         targets (torch.Tensor): (batch_size, N_objects, 5)
 
     Returns:
@@ -162,14 +165,16 @@ def compute_loss(predictions, targets, num_classes=4):
     """
     device = predictions.device
     batch_size = predictions.size(0)
-
+    
+    # Initialize loss counters
     total_loss_batch = torch.zeros(1, device=device, requires_grad=True)
     total_correct = 0
     total_objects = 0
-
+    
+    # Compute loss for each image in a batch one at a time
     for b in range(batch_size):
-        # predictions for single image: (num_cells, num_anchors, 9)
-        pred_single = predictions[b]
+        # predictions for single image
+        pred_single = predictions[b] # (num_cells, num_anchors, 9)
         target_single = targets[b]  # (N_objects, 5)
 
         loss_b, correct_b, objects_b = compute_loss_single_image(

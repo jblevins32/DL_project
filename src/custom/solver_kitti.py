@@ -9,7 +9,7 @@ import pathlib
 from data_processing_cifar import DataProcessing
 from data_processing_kitti import DataProcessorKitti
 from evalutation import compute_loss
-from src.custom.SimpleYOLO import SimpleYOLO
+from SimpleYOLO import SimpleYOLO
 from torchinfo import summary
 
 
@@ -49,7 +49,6 @@ class SolverKitti(object):
         # Define the NN model
         self.model = SimpleYOLO()
         summary(self.model, input_size=(1, 3, 365, 1220))
-        # print(self.model)
 
         # Define the optimizer
         self.optimizer = torch.optim.Adam(
@@ -107,7 +106,7 @@ class SolverKitti(object):
             # Train
             print(f'Training epoch {epoch}')
             self.model.train()
-            loss = self.MainLoop(epoch, self.train_loader)
+            loss = self.MainLoop(epoch, self.train_loader) # run the main loop of training to get the loss
             
             print(f'Validating epoch {epoch}')
             
@@ -170,11 +169,11 @@ class SolverKitti(object):
         for batch_idx, batch_data in enumerate(data_loader):
 
             # batch_data should be something like a list/tuple of items where each item is (image, label)
-            # Extract images and targets
+            # Extract images and targets from batch data
             images = [item[0] for item in batch_data]
             targets = [item[1] for item in batch_data]
 
-            # Stack images into a single tensor
+            # Stack images into a single tensor to our desired shape of (batch_size,in-channels,height,width)
             images = torch.stack(images).to(self.device)
             # Move targets to the device
             targets = [t.to(self.device) for t in targets]
@@ -265,11 +264,11 @@ class SolverKitti(object):
 
             # Call the forward pass on the model. The data model() automatically calls model.forward()
             pred = self.model(data)
-
+            # Reshape output to 2 bounding boxes per gridbox and ...?
             output = pred.view(self.batch_size, 114, 2, 9)
 
             # Calculate loss
-            loss, acc = self.LossCalc(output, target)
+            loss, acc = compute_loss(output, target)
             
             # Main backward pass to Update gradients
             self.optimizer.zero_grad()
@@ -284,16 +283,6 @@ class SolverKitti(object):
                 loss = self.criterion(output, target)
 
         return output, loss, acc
-    
-    def LossCalc(self, output, target):
-        '''
-        Calcualtes the loss for the kitti dataset model output
-        '''
-
-        # assumes num of classes is 4 but can be customized using last parameter
-        loss, class_accuracy = compute_loss(output, target)
-
-        return loss, class_accuracy
         
     def plot(self, loss):
         '''

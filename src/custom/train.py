@@ -3,8 +3,8 @@ Run this script to train a model
 '''
 
 import yaml
-from solver import Solver
-from solver_kitti import SolverKitti
+from solver import Solver # use this for cifar data
+from solver_kitti import SolverKitti # use this for Kitti data
 import torch
 
 # Choose calculation device - Use cpu if CUDA gpu not available
