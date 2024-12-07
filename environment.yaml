@@ -10,5 +10,7 @@ dependencies:
   - jupyter
   - pytest
   - tqdm
-  - torch
+  - pytorch
   - torchinfo
+  - torchvision
+  - scikit-learn
