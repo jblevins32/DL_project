@@ -9,3 +9,4 @@ Train:
   gamma: 1
   model_type: "customcnn_kitti" # linear, alexnet, resnet, customcnn, customcnn_kitti
   data_type: "kitti" # cifar, kitti
+  training_split_percentage: 0.01

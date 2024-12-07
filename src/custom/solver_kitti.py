@@ -39,12 +39,14 @@ class SolverKitti(object):
         self.save_best = kwargs.pop("save_best", True)
         self.model_type = kwargs.pop("model_type", "linear")
         self.data_type = kwargs.pop("data_type", "cifar")
+        self.training_split_percentage = kwargs.pop("training_split_percentage", 0.8)
         
         # Define the data
         if self.data_type == "cifar":
             self.train_loader, self.val_loader, self.test_dataset = DataProcessing(self.batch_size)
         elif self.data_type == "kitti": 
-            self.train_loader, self.val_loader, self.test_dataset = DataProcessorKitti(self.batch_size)
+            self.train_loader, self.val_loader, self.test_dataset = DataProcessorKitti(self.batch_size,
+                                                                                       self.training_split_percentage)
 
         # Define the NN model
         self.model = SimpleYOLO()
@@ -280,7 +282,7 @@ class SolverKitti(object):
             # Do not update gradients
             with torch.no_grad():
                 output = self.model(data)
-                loss = self.criterion(output, target)
+                loss, acc = self.LossCalc(output, target)
 
         return output, loss, acc
         
