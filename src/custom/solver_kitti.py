@@ -152,17 +152,11 @@ class SolverKitti(object):
                 torch.save(self.best_model.state_dict(), model_path)
                 
             # Plot
-            self.plot(loss)
+            self.PlotAndSave(loss)
             
         # Print training time
         train_time_end = time.time()
         print(f'Train Time: {round(train_time_end-train_time_start_overall,2)} Seconds')
-        
-        # Save the figs
-        fig_name_png = f'figs/loss_{loss:.4f}.png'
-        fig_name_eps = f'figs/loss_{loss:.4f}.eps'
-        plt.savefig(fig_name_png)
-        plt.savefig(fig_name_eps)
 
     def MainLoop(self, epoch, data_loader):
         '''
@@ -309,7 +303,7 @@ class SolverKitti(object):
 
         return output, loss, acc
         
-    def plot(self, loss):
+    def PlotAndSave(self, loss):
         '''
         Plot loss live during training
         
