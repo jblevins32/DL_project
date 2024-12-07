@@ -4,18 +4,25 @@ import torch.nn as nn
 
 class SimpleYOLO(nn.Module):
     def __init__(self, num_classes=4, num_anchors=2):
-        super(SimpleYOLO, self).__init__()
+        super(SimpleYOLO, self).__init__() # initializes subclass functions and variables within nn.Module
 
-        # Initial conv_block function for most layers
+        # Conv block with kernel size 3x3, stride 2 for downsampling
         def conv_block(in_channels, out_channels):
-            # A simple block with stride=2 conv for downsampling (3x3 kernel)
             return nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1),
                 nn.BatchNorm2d(out_channels),
                 nn.ReLU(inplace=True)
             )
 
-        # Final block with kernel_size=2, stride=2, padding=0 to get exactly 6x19
+        # Additional convolution block without downsampling
+        def extra_conv_block(in_channels, out_channels):
+            return nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(inplace=True)
+            )
+
+        # Final block with kernel_size=2, stride=2 to get exactly 6x19
         def final_conv_block(in_channels, out_channels):
             return nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0),
@@ -23,28 +30,21 @@ class SimpleYOLO(nn.Module):
                 nn.ReLU(inplace=True)
             )
 
-        # Downsample aggressively
+        # Downsample and increase depth
         # Input: 3 x 365 x 1220
-        # After first conv_block:  32 x ~182 x 610
-        # After second conv_block: 64 x ~91 x 305
-        # After third conv_block:  128 x ~46 x 153
-        # After fourth conv_block: 256 x ~23 x 77
-        # After fifth conv_block:  512 x ~12 x 39
-        # After sixth final_conv_block: 512 x 6 x 19 (exact as needed)
-
         self.features = nn.Sequential(
-            conv_block(3, 32),
-            conv_block(32, 64),
-            conv_block(64, 128),
-            conv_block(128, 256),
-            conv_block(256, 512),
-            final_conv_block(512, 512),  # Modified last layer
+            conv_block(3, 32),          # 32 x 182 x 610
+            conv_block(32, 64),         # 64 x 91 x 305
+            conv_block(64, 128),        # 128 x 46 x 153
+            extra_conv_block(128, 128), # 128 x 46 x 153 (extra block)
+            conv_block(128, 256),       # 256 x 23 x 77
+            extra_conv_block(256, 256), # 256 x 23 x 77 (extra block)
+            conv_block(256, 512),       # 512 x 12 x 39
+            extra_conv_block(512, 512), # 512 x 12 x 39 (extra block)
+            final_conv_block(512, 512), # 512 x 6 x 19
         )
 
         # YOLO-like prediction layer:
-        # Each cell predicts multiple anchors. Each anchor predicts:
-        # (x, y, w, h, conf) + class_probs = 5 + num_classes
-        # For num_anchors anchors, total channels = num_anchors * (5 + num_classes)
         out_channels = num_anchors * (5 + num_classes)
 
         # A simple 1x1 conv for predictions

@@ -4,7 +4,7 @@ import os
 import torch
 from torch.utils.data import DataLoader
 
-def DataProcessing(batch_size):
+def DataProcessorCIFAR(batch_size):
     '''
     Loads the image data and processes it with the dataloader files 
     
@@ -33,6 +33,7 @@ def DataProcessing(batch_size):
     # Transforms for validation data (no augmentation)
     transform_test = transforms.Compose(
         [
+            transforms.Resize((32,32)), # This image size is currently set to the image size of the cifar10 dataset
             transforms.ToTensor(),
             transforms.Normalize(
                 (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)

@@ -192,7 +192,7 @@ class MyModel(nn.Module):
             # for KITTI object detection, out should be [batch_size, num_objects_Detected, 5]
             self.fully_connected = nn.Sequential(
                 nn.Flatten(),
-                nn.Linear(6*19*1024, 6*19*2*4*5), # 6x19 is the grid placed on the image
+                nn.Linear(6*19*1024, 2052), # was 6*19*2*4*5 ... 6x19 is the grid placed on the image
                 # nn.Linear(4560, 6*19*2*4*5) # (2 bounding boxes per cell * 4 coordinates and 1 confidence score) + 4 number of classes = 14
             )
             

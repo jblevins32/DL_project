@@ -56,7 +56,8 @@ class SolverKitti(object):
 
         # Define the NN model
         self.model = SimpleYOLO()
-        summary(self.model, input_size=(1, 3, 365, 1220))
+        # self.model = MyModel(self.model_type,self.batch_size)
+        summary(self.model, input_size=(self.batch_size, 3, 365, 1220))
 
         # Define the optimizer
         self.optimizer = torch.optim.Adam(
