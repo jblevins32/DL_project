@@ -118,6 +118,8 @@ class SolverKitti(object):
         # Main training loop
         for epoch in range(self.epochs):
             
+            epoch_start_time = time.time()
+            
             # Adjust learning rate (for SGD optimizer. Adam does this automatically)
             self._adjust_learning_rate(epoch)
             
@@ -161,9 +163,10 @@ class SolverKitti(object):
             # Plot
             self.PlotAndSave(loss)
             
+            print(f'Epoch {epoch} took {round(time.time()-epoch_start_time,2)} seconds')
+            
         # Print training time
-        train_time_end = time.time()
-        print(f'Train Time: {round(train_time_end-train_time_start_overall,2)} Seconds')
+        print(f'Train Time: {round(time.time()-train_time_start_overall,2)} seconds')
 
     def MainLoop(self, epoch, data_loader):
         '''

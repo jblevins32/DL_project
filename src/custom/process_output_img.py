@@ -12,7 +12,7 @@ def ProcessOutputImg(img, output, label, num_classes):
         output (1,18,6,19) --> here we convert to (114,2,9) where 2 bbox per grid and 9 is (bbox coords, conf, class probabilities) 
         
     Returns:
-        output with bounding boxes
+        shows output img with bounding boxes
     '''
     
     output = output.reshape(228,9)
