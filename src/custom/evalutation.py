@@ -19,32 +19,34 @@ def compute_loss(predictions, targets, num_classes=4):
     
     # Initialize loss counters
     total_loss_batch = torch.zeros(1, device=device, requires_grad=True)
-    total_correct = 0
+    total_truePos = 0
+    total_falsePos = 0
     total_objects = 0
     
     # Compute loss for each image in a batch one at a time
-    for b in range(batch_size):
+    for singleImageFrameIdx in range(batch_size):
         # predictions for single image
-        pred_single = predictions[b] # (num_cells, num_anchors, 9)
-        target_single = targets[b]  # (N_objects, 5)
+        pred_single = predictions[singleImageFrameIdx] # (num_cells, num_anchors, 9)
+        target_single = targets[singleImageFrameIdx]  # (N_objects, 5)
 
-        loss_b, correct_b, objects_b = compute_loss_single_image(
+        single_loss, single_truePos, single_falsePos, single_totObjs = compute_loss_single_image(
             pred_single, target_single, num_classes=num_classes
         )
 
-        if b == 0:
-            total_loss_batch = loss_b
+        if singleImageFrameIdx == 0:
+            total_loss_batch = single_loss
         else:
-            total_loss_batch = total_loss_batch + loss_b
+            total_loss_batch = total_loss_batch + single_loss
 
-        total_correct += correct_b
-        total_objects += objects_b
+        total_truePos += single_truePos
+        total_falsePos += single_falsePos
+        total_objects += single_totObjs
 
     # Average loss over the batch
     avg_loss = total_loss_batch / batch_size
-    class_accuracy = total_correct / total_objects if total_objects > 0 else 0.0
+    class_precision = (total_truePos / (total_truePos + total_falsePos)) if (total_truePos + total_falsePos) > 0 else 0.0
 
-    return avg_loss, class_accuracy
+    return avg_loss, class_precision
 
 def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365, 1220),
                              grid_h=6, grid_w=19, conf_threshold=0.8, iou_threshold=0.5):
@@ -110,7 +112,7 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
         # determines which of the anchors for this cell had higher confidence in prediction
         max_conf, max_conf_idx = torch.max(pred_anchor_confs, dim=0)
         pred_bbox = pred_anchor_bboxes[max_conf_idx]
-        pred_class = pred_anchor_classes[max_conf_idx]
+        pred_class = torch.argmax(pred_anchor_classes[max_conf_idx])
 
         # Assign to anchor with highest predicted confidence
         target_tensor[cell_index, max_conf_idx, 0] = bbox_left_target
