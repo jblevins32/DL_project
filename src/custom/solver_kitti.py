@@ -88,8 +88,8 @@ class SolverKitti(object):
             None
         '''
         
-        self.best = 0.0
-        self.best_cm = None
+        self.best_loss = 0.0
+        self.best_f1 = 0.0
         self.best_model = None
     
     def train(self):
@@ -130,23 +130,30 @@ class SolverKitti(object):
             
             # Validate
             self.model.eval()
-            acc, cm = self.MainLoop(epoch, self.val_loader)
+            f1_score = self.MainLoop(epoch, self.val_loader)
 
             # Store best model
-            if loss < self.best: # was accuracy but accuracy is not functional yet
-                self.best = loss
-                self.best_cm = cm
+            if loss < self.best_loss: # was accuracy but accuracy is not functional yet
+                self.best_loss = loss
                 self.best_model = copy.deepcopy(self.model)
             elif epoch == 0:
-                self.best = loss
+                self.best_loss = loss
                 self.best_model = copy.deepcopy(self.model)
+
+            if f1_score > self.best_f1:
+                self.best_f1 = f1_score
+                print("New best f1") # could save model here too if we want
             
             if self.save_best and epoch > floor(self.epochs * 0.3):
 
                 if not os.path.exists(specific_model_dir):
                     os.makedirs(specific_model_dir)
 
-                model_name = self.model_type.lower() + '_loss_' + str(round(loss,3)) + "_epoch_" + str(epoch) + ".pt"
+                loss_string = '_loss_' + str(round(loss,3))
+                f1_string = '_f1_' + str(f1_score)
+                epoch_string = "_epoch_" + str(epoch)
+
+                model_name = self.model_type.lower() + loss_string + f1_string + epoch_string + ".pt"
                 model_path = os.path.join(specific_model_dir, model_name)
 
                 torch.save(self.best_model.state_dict(), model_path)
@@ -175,7 +182,7 @@ class SolverKitti(object):
         # Initialize meters for timing, loss, and accuracy
         iter_time = AverageMeter()
         losses = AverageMeter()
-        precision = AverageMeter()
+        f1_score = AverageMeter()
 
         # Initialize confusion matrix (used during validation)
         num_class = 10
@@ -200,12 +207,12 @@ class SolverKitti(object):
             start_batch = time.time()
 
             # Compute outputs, loss, and accuracy
-            out, loss, batch_precision = self.ComputeLossAccUpdateParams(images, targets)
+            out, loss, batch_f1Score = self.ComputeLossAccUpdateParams(images, targets)
 
             # Update metrics
             batch_size = out.shape[0]
             losses.update(loss.item(), batch_size)
-            precision.update(batch_precision, batch_size)
+            f1_score.update(batch_f1Score, batch_size)
             iter_time.update(time.time() - start_batch)
 
             if is_training:
@@ -215,10 +222,10 @@ class SolverKitti(object):
                         "Epoch: [{0}][{1}/{2}]\t"
                         "Time {iter_time.val:.3f} ({iter_time.avg:.3f})\t"
                         "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
-                        "Prec @1 {top1.val:.4f} ({top1.avg:.4f})"
+                        "F1_Score @1 {top1.val:.4f} ({top1.avg:.4f})"
                         .format(
                             epoch, batch_idx, len(data_loader),
-                            iter_time=iter_time, loss=losses, top1=precision
+                            iter_time=iter_time, loss=losses, top1=f1_score
                         )
                     )
             else:
@@ -257,8 +264,8 @@ class SolverKitti(object):
             # for i, acc_i in enumerate(per_cls_acc):
             #     print("Accuracy of Class {}: {:.4f}".format(i, acc_i))
 
-            print("* Prec @1: {top1.avg:.4f}".format(top1=precision))
-            return precision.avg, cm
+            print("* F1_Score @1: {top1.avg:.4f}".format(top1=f1_score))
+            return f1_score.avg
 
     def ComputeLossAccUpdateParams(self, data, target):
         '''
@@ -286,7 +293,7 @@ class SolverKitti(object):
             output = pred.view(self.batch_size, 114, 2, 9)
 
             # Calculate loss
-            loss, precision = compute_loss(output, target)
+            loss, f1_score = compute_loss(output, target)
             
             # Main backward pass to Update gradients
             self.optimizer.zero_grad()
@@ -299,9 +306,9 @@ class SolverKitti(object):
             with torch.no_grad():
                 pred = self.model(data)
                 output = pred.view(self.batch_size, 114, 2, 9)
-                loss, precision = compute_loss(output, target)
+                loss, f1_score = compute_loss(output, target)
 
-        return output, loss, precision
+        return output, loss, f1_score
         
     def PlotAndSave(self, loss):
         '''

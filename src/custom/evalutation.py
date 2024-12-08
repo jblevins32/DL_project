@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torcheval.metrics.functional import multiclass_f1_score
 
 def compute_loss(predictions, targets, num_classes=4):
     """
@@ -19,9 +20,7 @@ def compute_loss(predictions, targets, num_classes=4):
     
     # Initialize loss counters
     total_loss_batch = torch.zeros(1, device=device, requires_grad=True)
-    total_truePos = 0
-    total_falsePos = 0
-    total_objects = 0
+    total_f1Score = 0
     
     # Compute loss for each image in a batch one at a time
     for singleImageFrameIdx in range(batch_size):
@@ -29,7 +28,7 @@ def compute_loss(predictions, targets, num_classes=4):
         pred_single = predictions[singleImageFrameIdx] # (num_cells, num_anchors, 9)
         target_single = targets[singleImageFrameIdx]  # (N_objects, 5)
 
-        single_loss, single_truePos, single_falsePos, single_totObjs = compute_loss_single_image(
+        single_loss, single_f1Score = compute_loss_single_image(
             pred_single, target_single, num_classes=num_classes
         )
 
@@ -38,15 +37,13 @@ def compute_loss(predictions, targets, num_classes=4):
         else:
             total_loss_batch = total_loss_batch + single_loss
 
-        total_truePos += single_truePos
-        total_falsePos += single_falsePos
-        total_objects += single_totObjs
+        total_f1Score += single_f1Score
 
     # Average loss over the batch
     avg_loss = total_loss_batch / batch_size
-    class_precision = (total_truePos / (total_truePos + total_falsePos)) if (total_truePos + total_falsePos) > 0 else 0.0
+    f1_score = total_f1Score / batch_size
 
-    return avg_loss, class_precision
+    return avg_loss, f1_score
 
 def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365, 1220),
                              grid_h=6, grid_w=19, conf_threshold=0.8, iou_threshold=0.5):
@@ -90,10 +87,6 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     # 0:4 -> box coords, 4 -> conf, 5:9 -> one-hot classes
     target_tensor = torch.zeros_like(predictions, device=device)
 
-    correct_predictions = 0
-    incorrect_predictions = 0
-    total_objects = normalized_targets.shape[0]
-
     # Assign targets to grid
     for gt in normalized_targets:
 
@@ -126,21 +119,15 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
         class_vec[target_class_id] = 1.0
         target_tensor[cell_index, max_conf_idx, 5:] = class_vec
 
-        pred_left = pred_bbox[0] * img_w
-        pred_top = pred_bbox[1] * img_h
-        pred_right = pred_bbox[2] * img_w
-        pred_bottom = pred_bbox[3] * img_h
-
-        target_left = bbox_left_target * img_w
-        target_top = bbox_top_target * img_h
-        target_right = bbox_right_target * img_w
-        target_bottom = bbox_bottom_target * img_h
-
-        if max_conf >= conf_threshold:
-            if pred_class == target_class_id:
-                correct_predictions += 1
-            else:
-                incorrect_predictions += 1
+        # pred_left = pred_bbox[0] * img_w
+        # pred_top = pred_bbox[1] * img_h
+        # pred_right = pred_bbox[2] * img_w
+        # pred_bottom = pred_bbox[3] * img_h
+        #
+        # target_left = bbox_left_target * img_w
+        # target_top = bbox_top_target * img_h
+        # target_right = bbox_right_target * img_w
+        # target_bottom = bbox_bottom_target * img_h
 
             # iou = bbox_iou(
             #     torch.tensor([pred_left, pred_top, pred_right, pred_bottom], device=device),
@@ -186,10 +173,11 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     # Combines loss function component functions into a total loss value
     total_loss = bboxLoss + confidenceLoss + backgroundLoss + classScoreLoss
 
-    true_positives = correct_predictions
-    false_positives = incorrect_predictions
+    # Metrics Calculation
+    predictedClassArray = torch.argmax(predictions[:, 5:], dim=1)
+    f1_score = multiclass_f1_score(predictedClassArray, target_tensor[:, 4], num_classes=num_classes)
 
-    return total_loss, true_positives, false_positives, total_objects
+    return total_loss, f1_score
 
 def bbox_iou(box1, box2):
     """
