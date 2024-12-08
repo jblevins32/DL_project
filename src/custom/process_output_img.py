@@ -1,6 +1,7 @@
 from torchvision import transforms
 import matplotlib.pyplot as plt
 import torch
+import matplotlib.patches as mpatches
 
 def ProcessOutputImg(img, output, label, num_classes):
     '''
@@ -13,9 +14,6 @@ def ProcessOutputImg(img, output, label, num_classes):
     Returns:
         output with bounding boxes
     '''
-
-    denormalize = transforms.Normalize(mean=[-0.5 / 0.5, -0.5 / 0.5, -0.5 / 0.5], std=[1 / 0.5, 1 / 0.5, 1 / 0.5])
-    normal_img = denormalize(img)
     
     output = output.reshape(228,9)
     
@@ -34,6 +32,58 @@ def ProcessOutputImg(img, output, label, num_classes):
     # Get predicted class for each bbox
     preds = resulting_boxes[:,:5]
     preds[:,4] = torch.argmax(resulting_boxes[:,5:],dim=1)
+    
+    # Bring image back to normal state
+    denormalize = transforms.Normalize(mean=[-0.5 / 0.5, -0.5 / 0.5, -0.5 / 0.5], std=[1 / 0.5, 1 / 0.5, 1 / 0.5])
+    img = denormalize(img).permute(1,2,0)
+    img_copy = img.clone()
+    
+    # Loop through detected objects in predictions then labels and plot the bboxes
+    for obj_list in [preds, label]:
+        for obj in obj_list:
+            x,y,w,h,clas = [int(val) for val in torch.round(obj)]
+
+            if clas == 0: # red
+                RGB = torch.tensor([1,0,0])
+            elif clas == 1: # green
+                RGB = torch.tensor([0,1,0])
+            elif clas == 2: # blue
+                RGB = torch.tensor([0,0,1])
+            else: # purple
+                RGB = torch.tensor([.5,0,.5])
+            
+            if y>h:
+                start_x = h
+                end_x = y
+            else:
+                start_x = y
+                end_x = h
+            if x>w:
+                start_y = w
+                end_y = x
+            else:
+                start_y = x
+                end_y = w
+            
+            img[start_x:end_x,start_y:end_y,:] = RGB
+            
+            bw = 5 # border width
+            img[start_x+bw:end_x-bw,start_y+bw:end_y-bw,:] = img_copy[start_x+bw:end_x-bw,start_y+bw:end_y-bw,:]
+            
+            # ensure future bounding boxes aren't overwritten by the original img
+            img_copy = img.clone()
+        
+        
+    # After plotting your boxes and before `plt.show()`:
+    red_patch = mpatches.Patch(color='red', label='Car')
+    green_patch = mpatches.Patch(color='green', label='Van')
+    blue_patch = mpatches.Patch(color='blue', label='Pedestrian')
+    purple_patch = mpatches.Patch(color='purple', label='Cyclist')
+
+    plt.legend(handles=[red_patch, green_patch, blue_patch, purple_patch])
+
+    plt.imshow(img)            
+    plt.show()
     
 def ShowResults(img, output):
     '''
