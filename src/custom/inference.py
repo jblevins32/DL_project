@@ -41,8 +41,8 @@ elif data_type == "kitti":
 # input_rgb = Image.open(image_path).convert("RGB")
 # input_tensor = preprocess(input_rgb).unsqueeze(0)
 
-img = test_dataset[0][0]
-label = test_dataset[0][1] # (n,5) = number of boxes, 4 bbox coords and 1 class ID
+img = test_dataset[7][0]
+label = test_dataset[7][1] # (n,5) = number of boxes, 4 bbox coords and 1 class ID
 input_tensor = img.unsqueeze(0)
 
 # Run inference
@@ -51,7 +51,9 @@ with torch.no_grad():
   
 # Process output kitti
 # ShowResults(img, output)
-ProcessOutputImg(img, output, label, num_classes = 4)
+predictions = ProcessOutputImg(img, output, label, num_classes = 4)
+
+
 
 test=1
   
