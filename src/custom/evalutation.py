@@ -94,15 +94,16 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     # Assign targets to grid
     for gt in normalized_targets:
         
-        # Extract normalized coordiantes for grid target
-        left_norm, top_norm, right_norm, bottom_norm, class_id = gt
-        class_id = int(class_id)
+        # Extract normalized coordinates for grid target
+        bbox_left_target, bbox_top_target, bbox_right_target, bbox_bottom_target, target_class_id = gt
+        target_class_id = int(target_class_id)
 
-        x_center = (left_norm + right_norm) / 2.0
-        y_center = (top_norm + bottom_norm) / 2.0
+        x_center = (bbox_left_target + bbox_right_target) / 2.0
+        y_center = (bbox_top_target + bbox_bottom_target) / 2.0
 
-        cell_x = int(x_center * grid_w)
-        cell_y = int(y_center * grid_h)
+        # rounding here to improve grid cell association rather than int truncation (basically floor)
+        cell_x = int(torch.round(x_center * grid_w))
+        cell_y = int(torch.round(y_center * grid_h))
 
         # Handle edges
         if cell_x >= grid_w:
@@ -110,19 +111,19 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
         if cell_y >= grid_h:
             cell_y = grid_h - 1
 
-        # Determine index of cell being esimated to contain this target
+        # Determine index of cell being estimated to contain this target
         cell_index = cell_y * grid_w + cell_x
 
         # Assign to first anchor for simplicity
-        target_tensor[cell_index, 0, 0] = left_norm
-        target_tensor[cell_index, 0, 1] = top_norm
-        target_tensor[cell_index, 0, 2] = right_norm
-        target_tensor[cell_index, 0, 3] = bottom_norm
+        target_tensor[cell_index, 0, 0] = bbox_left_target
+        target_tensor[cell_index, 0, 1] = bbox_top_target
+        target_tensor[cell_index, 0, 2] = bbox_right_target
+        target_tensor[cell_index, 0, 3] = bbox_bottom_target
         target_tensor[cell_index, 0, 4] = 1.0
 
         # One-hot class
         class_vec = torch.zeros(num_classes, device=device)
-        class_vec[class_id] = 1.0
+        class_vec[target_class_id] = 1.0
         target_tensor[cell_index, 0, 5:5+num_classes] = class_vec
 
         # Accuracy calculation
@@ -146,7 +147,7 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
             )
             if iou >= iou_threshold:
                 pred_class_id = torch.argmax(pred_classes[max_conf_idx]).item()
-                if pred_class_id == class_id:
+                if pred_class_id == target_class_id:
                     correct_predictions += 1
 
     # Masks
@@ -168,11 +169,19 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     # Class loss
     class_loss = bce_loss_class(predictions[obj_mask][..., 5:5+num_classes], target_tensor[obj_mask][..., 5:5+num_classes])
 
-    lambda_coord = 5.0
-    lambda_noobj = 0.5
-    lambda_class = 1.0
+    # Loss totaling
+    lambda_boundingBoxes = 1.0
+    lambda_confidence = 1.0
+    lambda_noObjectBoxes = 1.0
+    lambda_classScore = 1.0
 
-    total_loss = (lambda_coord * loc_loss) + conf_loss_obj + (lambda_noobj * conf_loss_noobj) + (lambda_class * class_loss)
+    bboxLoss = lambda_boundingBoxes * loc_loss
+    confidenceLoss = lambda_confidence * conf_loss_obj
+    backgroundLoss = lambda_noObjectBoxes * conf_loss_noobj
+    classScoreLoss = lambda_classScore * class_loss
+
+    total_loss = bboxLoss + confidenceLoss + backgroundLoss + classScoreLoss
+
     return total_loss, correct_predictions, total_objects
 
 def bbox_iou(box1, box2):
