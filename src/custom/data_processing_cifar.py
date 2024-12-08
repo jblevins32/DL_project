@@ -4,6 +4,9 @@ import os
 import torch
 from torch.utils.data import DataLoader
 
+from globals import root_directory
+
+
 def DataProcessorCIFAR(batch_size):
     '''
     Loads the image data and processes it with the dataloader files 
@@ -54,9 +57,11 @@ def DataProcessorCIFAR(batch_size):
         train_dataset, batch_size=batch_size, shuffle=True
     )
 
+    data_dir = os.path.join(root_directory, "data")
+
     # Load the testing dataset
     test_dataset = torchvision.datasets.CIFAR10(
-        root="./data", train=False, download=True, transform=transform_test
+        root=data_dir, train=False, download=True, transform=transform_test
     )
     
     # Wrap testing dataset with batchsize and shuffling for validation

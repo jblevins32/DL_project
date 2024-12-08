@@ -5,7 +5,6 @@ Run this script to train a model
 from load_args import LoadArgs
 from solver import Solver # use this for cifar data
 from solver_kitti import SolverKitti # use this for Kitti data
-import torch
 
 # Load arguments from config file
 kwargs = LoadArgs()

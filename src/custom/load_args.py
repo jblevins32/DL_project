@@ -1,5 +1,7 @@
 import yaml
 import torch
+import os
+from globals import root_directory
 
 def LoadArgs():
     '''
@@ -10,7 +12,9 @@ def LoadArgs():
     print("Using device = " + device)
 
     # Unload config to keyword arguments
-    with open("config.yaml", "r") as read_file:
+    config_path = os.path.join(root_directory, "config.yaml")
+
+    with open(config_path, "r") as read_file:
         config = yaml.safe_load(read_file)
 
     kwargs = {k: v for section in config for k, v in config[section].items() if k != 'description'}

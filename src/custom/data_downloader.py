@@ -2,10 +2,11 @@ import os
 import urllib.request
 import zipfile
 from tqdm import tqdm
+from globals import root_directory
 
 class KittiDataDownloader:
 
-    dataset_dir = "./dataset"
+    dataset_dir = os.path.join(root_directory, "dataset")
     image_dir = os.path.join(dataset_dir, "images")
     label_dir = os.path.join(dataset_dir, "labels")
 

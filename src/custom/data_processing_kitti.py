@@ -4,14 +4,16 @@ from kitti_dataset import KittiDataset
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
+import os
+from globals import root_directory
 
 def DataProcessorKitti(batch_size, training_split_percentage=0.8, dataset_percentage=1.0):
 
     dataDownloader = KittiDataDownloader()
     dataDownloader.prepareDataset()
 
-    image_dir = "dataset/images/training/image_02"
-    label_dir = "dataset/labels/training/label_02"
+    image_dir = os.path.join(root_directory, "dataset/images/training/image_02")
+    label_dir = os.path.join(root_directory, "dataset/labels/training/label_02")
 
     transform = transforms.Compose([
         transforms.ToTensor(),  # Convert images to PyTorch tensors

@@ -15,7 +15,7 @@ from evalutation import compute_loss
 from SimpleYOLO import SimpleYOLO
 from torchinfo import summary
 from datetime import datetime
-
+from globals import root_directory
 
 class SolverKitti(object):
     def __init__(self, **kwargs):
@@ -106,7 +106,7 @@ class SolverKitti(object):
         # Log start time of training
         train_time_start_overall = time.time()
 
-        model_dir = "./models"
+        model_dir = os.path.join(root_directory, "models")
         if not os.path.exists(model_dir):
             os.makedirs(model_dir)
 
@@ -175,7 +175,7 @@ class SolverKitti(object):
         # Initialize meters for timing, loss, and accuracy
         iter_time = AverageMeter()
         losses = AverageMeter()
-        acc = AverageMeter()
+        precision = AverageMeter()
 
         # Initialize confusion matrix (used during validation)
         num_class = 10
@@ -200,12 +200,12 @@ class SolverKitti(object):
             start_batch = time.time()
 
             # Compute outputs, loss, and accuracy
-            out, loss, batch_acc = self.ComputeLossAccUpdateParams(images, targets)
+            out, loss, batch_precision = self.ComputeLossAccUpdateParams(images, targets)
 
             # Update metrics
             batch_size = out.shape[0]
             losses.update(loss.item(), batch_size)
-            acc.update(batch_acc, batch_size)
+            precision.update(batch_precision, batch_size)
             iter_time.update(time.time() - start_batch)
 
             if is_training:
@@ -218,7 +218,7 @@ class SolverKitti(object):
                         "Prec @1 {top1.val:.4f} ({top1.avg:.4f})"
                         .format(
                             epoch, batch_idx, len(data_loader),
-                            iter_time=iter_time, loss=losses, top1=acc
+                            iter_time=iter_time, loss=losses, top1=precision
                         )
                     )
             else:
@@ -257,8 +257,8 @@ class SolverKitti(object):
             # for i, acc_i in enumerate(per_cls_acc):
             #     print("Accuracy of Class {}: {:.4f}".format(i, acc_i))
 
-            print("* Prec @1: {top1.avg:.4f}".format(top1=acc))
-            return acc.avg, cm
+            print("* Prec @1: {top1.avg:.4f}".format(top1=precision))
+            return precision.avg, cm
 
     def ComputeLossAccUpdateParams(self, data, target):
         '''
@@ -275,7 +275,7 @@ class SolverKitti(object):
         
         output = None
         loss = None
-        acc = None
+        precision = None
         
         # If in training mode, update weights, otherwise do not
         if self.model.training:
@@ -286,7 +286,7 @@ class SolverKitti(object):
             output = pred.view(self.batch_size, 114, 2, 9)
 
             # Calculate loss
-            loss, acc = compute_loss(output, target)
+            loss, precision = compute_loss(output, target)
             
             # Main backward pass to Update gradients
             self.optimizer.zero_grad()
@@ -299,9 +299,9 @@ class SolverKitti(object):
             with torch.no_grad():
                 pred = self.model(data)
                 output = pred.view(self.batch_size, 114, 2, 9)
-                loss, acc = compute_loss(output, target)
+                loss, precision = compute_loss(output, target)
 
-        return output, loss, acc
+        return output, loss, precision
         
     def PlotAndSave(self, loss):
         '''
@@ -321,7 +321,7 @@ class SolverKitti(object):
         plt.title('Training Loss Over Time')
         plt.pause(0.0000001)
         
-        fig_dir = "./figs"
+        fig_dir = os.path.join(root_directory, "figs")
         if not os.path.exists(fig_dir):
             os.makedirs(fig_dir)
             
