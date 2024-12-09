@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torcheval.metrics.functional import multiclass_f1_score
 
-def compute_loss(predictions, targets, num_classes=4):
+def compute_loss(predictions, targets, num_classes=5):
     """
     Compute the YOLO-style loss and class accuracy for a batch of images.
 
@@ -45,7 +45,7 @@ def compute_loss(predictions, targets, num_classes=4):
 
     return avg_loss, f1_score, specific_losses
 
-def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365, 1220),
+def compute_loss_single_image(predictions, targets, num_classes=5, img_size=(365, 1220),
                              grid_h=6, grid_w=19, conf_threshold=0.8, iou_threshold=0.5):
     """
     Compute loss and accuracy for a single image.
@@ -69,12 +69,9 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     device = predictions.device
     num_cells = grid_h * grid_w # generalize this
     num_anchors = predictions.shape[1] # number of bounding boxes per gridbox
-    assert predictions.shape == (num_cells, num_anchors, 9), "Prediction shape mismatch."
+    assert predictions.shape == (num_cells, num_anchors, 10), "Prediction shape mismatch."
 
     img_h, img_w = img_size
-
-    predictions[..., 0:5] = torch.sigmoid(predictions[..., 0:5]) # maps bbox and conf to [0, 1]
-    predictions[..., 5:] = torch.softmax(predictions[..., 5:], dim=-1) # calculates softmax array for class scores
 
     # Normalize targets, converting from 0 to 1
     normalized_targets = targets.clone().to(device)
@@ -136,8 +133,8 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
             # if iou >= iou_threshold:
             #
 
-    target_tensor = target_tensor.reshape(num_cells * num_anchors, 9)
-    predictions = predictions.reshape(num_cells * num_anchors, 9)
+    target_tensor = target_tensor.reshape(num_cells * num_anchors, 5 + num_classes)
+    predictions = predictions.reshape(num_cells * num_anchors, 5 + num_classes)
 
     # Masks
     obj_mask = target_tensor[..., 4] == 1.0
@@ -146,10 +143,12 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     # Loss functions
     loc_loss_fn = nn.SmoothL1Loss(reduction='sum')
     bce_loss_conf = nn.BCEWithLogitsLoss(reduction='sum')
-    bce_loss_class = nn.BCEWithLogitsLoss(reduction='sum')
+    bce_loss_class = nn.CrossEntropyLoss(reduction='sum')
 
     # Localization loss
-    loc_loss = loc_loss_fn(predictions[obj_mask][..., 0:4], target_tensor[obj_mask][..., 0:4])
+    pred_imgScale = torch.sigmoid(predictions[obj_mask][..., 0:4]) * torch.tensor([img_w, img_h, img_w, img_h], device=device)
+    target_imgScale = target_tensor[obj_mask][..., 0:4] * torch.tensor([img_w, img_h, img_w, img_h], device=device)
+    loc_loss = loc_loss_fn(pred_imgScale, target_imgScale)
 
     # Confidence loss
     conf_loss_obj = bce_loss_conf(predictions[obj_mask][..., 4], target_tensor[obj_mask][..., 4])
@@ -159,10 +158,10 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     class_loss = bce_loss_class(predictions[obj_mask][..., 5:5+num_classes], target_tensor[obj_mask][..., 5:5+num_classes])
 
     # Weights for each component of the loss function, currently evenly weighted
-    lambda_boundingBoxes = 6
-    lambda_confidence = 1.0
-    lambda_noObjectBoxes = 0.5
-    lambda_classScore = 1.0
+    lambda_boundingBoxes = 0.5
+    lambda_confidence = 100.0
+    lambda_noObjectBoxes = 1.0
+    lambda_classScore = 100.0
 
     # Calculating each component of loss with weights
     bboxLoss = lambda_boundingBoxes * loc_loss
@@ -174,8 +173,9 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     total_loss = bboxLoss + confidenceLoss + backgroundLoss + classScoreLoss
 
     # Metrics Calculation
-    predictedClassArray = torch.argmax(predictions[:, 5:], dim=1)
-    f1_score = multiclass_f1_score(predictedClassArray, target_tensor[:, 4], num_classes=num_classes)
+    predictedClassArray = torch.argmax(torch.softmax(predictions[:, 5:], dim=1), dim=1)
+    targetClassArray = torch.argmax(target_tensor[:, 5:], dim=1)
+    f1_score = multiclass_f1_score(predictedClassArray, targetClassArray, num_classes=num_classes)
 
     return total_loss, f1_score, (bboxLoss, confidenceLoss, backgroundLoss, classScoreLoss)
 

@@ -3,8 +3,11 @@ import torch.nn as nn
 
 
 class SimpleYOLO(nn.Module):
-    def __init__(self, num_classes=4, num_anchors=2):
+    def __init__(self, num_classes=5, num_anchors=2):
         super(SimpleYOLO, self).__init__() # initializes subclass functions and variables within nn.Module
+
+        # YOLO-like prediction layer:
+        out_channels = num_anchors * (5 + num_classes)
 
         # Conv block with kernel size 3x3, stride 2 for downsampling
         def conv_block(in_channels, out_channels):
@@ -43,9 +46,6 @@ class SimpleYOLO(nn.Module):
             extra_conv_block(512, 512), # 512 x 12 x 39 (extra block)
             final_conv_block(512, 512), # 512 x 6 x 19
         )
-
-        # YOLO-like prediction layer:
-        out_channels = num_anchors * (5 + num_classes)
 
         # A simple 1x1 conv for predictions
         self.pred = nn.Conv2d(512, out_channels, kernel_size=1)

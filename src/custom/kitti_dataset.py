@@ -4,10 +4,11 @@ from torch.utils.data import Dataset
 from PIL import Image
 
 CLASS_MAPPING = {
-    "Car": 0,
-    "Van": 1,
-    "Pedestrian": 2,
-    "Cyclist": 3,
+    "NoObj": 0,
+    "Car": 1,
+    "Van": 2,
+    "Pedestrian": 3,
+    "Cyclist": 4,
 }
 
 class KittiDataset(Dataset):
