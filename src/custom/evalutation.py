@@ -159,9 +159,9 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     class_loss = bce_loss_class(predictions[obj_mask][..., 5:5+num_classes], target_tensor[obj_mask][..., 5:5+num_classes])
 
     # Weights for each component of the loss function, currently evenly weighted
-    lambda_boundingBoxes = 1.0
+    lambda_boundingBoxes = 6
     lambda_confidence = 1.0
-    lambda_noObjectBoxes = 1.0
+    lambda_noObjectBoxes = 0.5
     lambda_classScore = 1.0
 
     # Calculating each component of loss with weights
