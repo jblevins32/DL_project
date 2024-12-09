@@ -28,7 +28,7 @@ def compute_loss(predictions, targets, num_classes=4):
         pred_single = predictions[singleImageFrameIdx] # (num_cells, num_anchors, 9)
         target_single = targets[singleImageFrameIdx]  # (N_objects, 5)
 
-        single_loss, single_f1Score = compute_loss_single_image(
+        single_loss, single_f1Score, specific_losses = compute_loss_single_image(
             pred_single, target_single, num_classes=num_classes
         )
 
@@ -43,7 +43,7 @@ def compute_loss(predictions, targets, num_classes=4):
     avg_loss = total_loss_batch / batch_size
     f1_score = total_f1Score / batch_size
 
-    return avg_loss, f1_score
+    return avg_loss, f1_score, specific_losses
 
 def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365, 1220),
                              grid_h=6, grid_w=19, conf_threshold=0.8, iou_threshold=0.5):
@@ -177,7 +177,7 @@ def compute_loss_single_image(predictions, targets, num_classes=4, img_size=(365
     predictedClassArray = torch.argmax(predictions[:, 5:], dim=1)
     f1_score = multiclass_f1_score(predictedClassArray, target_tensor[:, 4], num_classes=num_classes)
 
-    return total_loss, f1_score
+    return total_loss, f1_score, (bboxLoss, confidenceLoss, backgroundLoss, classScoreLoss)
 
 def bbox_iou(box1, box2):
     """

@@ -75,6 +75,10 @@ class SolverKitti(object):
         
         # Initialize losses vector and best model storage
         self.train_losses = []
+        self.bbox_losses = []
+        self.conf_losses = []
+        self.backgnd_losses = []
+        self.cls_losses = []
         self._reset()
 
     def _reset(self):
@@ -126,7 +130,7 @@ class SolverKitti(object):
             # Train
             print(f'Training epoch {epoch}')
             self.model.train()
-            loss = self.MainLoop(epoch, self.train_loader) # run the main loop of training to get the loss
+            loss, specific_losses = self.MainLoop(epoch, self.train_loader) # run the main loop of training to get the loss
             
             print(f'Validating epoch {epoch}')
             
@@ -161,7 +165,7 @@ class SolverKitti(object):
                 torch.save(self.best_model.state_dict(), model_path)
                 
             # Plot
-            self.PlotAndSave(loss)
+            self.PlotAndSave(loss, specific_losses)
             
             print(f'Epoch {epoch} took {round(time.time()-epoch_start_time,2)} seconds')
             
@@ -186,6 +190,10 @@ class SolverKitti(object):
         iter_time = AverageMeter()
         losses = AverageMeter()
         f1_score = AverageMeter()
+        bboxLosses = AverageMeter()
+        confidenceLosses = AverageMeter()
+        backgroundLosses = AverageMeter()
+        classScoreLosses = AverageMeter()
 
         # Initialize confusion matrix (used during validation)
         num_class = 10
@@ -210,25 +218,35 @@ class SolverKitti(object):
             start_batch = time.time()
 
             # Compute outputs, loss, and accuracy
-            out, loss, batch_f1Score = self.ComputeLossAccUpdateParams(images, targets)
+            out, loss, batch_f1Score, specific_losses = self.ComputeLossAccUpdateParams(images, targets)
+            
+            bboxLoss, confidenceLoss, backgroundLoss, classScoreLoss = specific_losses
 
             # Update metrics
             batch_size = out.shape[0]
             losses.update(loss.item(), batch_size)
             f1_score.update(batch_f1Score, batch_size)
             iter_time.update(time.time() - start_batch)
+            bboxLosses.update(bboxLoss.item(), batch_size)
+            confidenceLosses.update(confidenceLoss.item(), batch_size)
+            backgroundLosses.update(backgroundLoss.item(), batch_size)
+            classScoreLosses.update(classScoreLoss.item(), batch_size)
 
             if is_training:
                 # Print training status every 10 batches
                 if batch_idx % 10 == 0:
                     print(
-                        "Epoch: [{0}][{1}/{2}]\t"
-                        "Time {iter_time.val:.3f} ({iter_time.avg:.3f})\t"
-                        "Loss {loss.val:.4f} ({loss.avg:.4f})\t"
-                        "F1_Score @1 {top1.val:.4f} ({top1.avg:.4f})"
+                        "Epoch: [{0}/{1}][{2}/{3}] | "
+                        "Time {iter_time.val:.3f} ({iter_time.avg:.3f}) | "
+                        "Loss {loss.val:.4f} ({loss.avg:.4f}) | "
+                        "bboxL {bboxLoss.val:.4f} ({bboxLoss.avg:.4f}) | "
+                        "confL {confidenceLoss.val:.4f} ({confidenceLoss.avg:.4f}) | "
+                        "backgndL {backgroundLoss.val:.4f} ({backgroundLoss.avg:.4f}) | "
+                        "clsL {classScoreLoss.val:.4f} ({classScoreLoss.avg:.4f}) | "
+                        "F1 {top1.val:.4f} ({top1.avg:.4f})"
                         .format(
-                            epoch, batch_idx, len(data_loader),
-                            iter_time=iter_time, loss=losses, top1=f1_score
+                            epoch, self.epochs, batch_idx, len(data_loader),
+                            iter_time=iter_time, loss=losses, top1=f1_score, bboxLoss = bboxLosses, confidenceLoss = confidenceLosses, backgroundLoss = backgroundLosses, classScoreLoss = classScoreLosses
                         )
                     )
             else:
@@ -255,7 +273,7 @@ class SolverKitti(object):
 
         if is_training:
             # Return the average loss during training
-            return losses.avg
+            return losses.avg, (bboxLosses.avg, confidenceLosses.avg, backgroundLosses.avg, classScoreLosses.avg)
         else:
             # # Compute accuracy per class, print results
             # cm_sum = cm.sum(dim=1, keepdim=True)
@@ -296,7 +314,7 @@ class SolverKitti(object):
             output = pred.view(self.batch_size, 114, 2, 9)
 
             # Calculate loss
-            loss, f1_score = compute_loss(output, target)
+            loss, f1_score, specific_losses = compute_loss(output, target)
             
             # Main backward pass to Update gradients
             self.optimizer.zero_grad()
@@ -309,11 +327,11 @@ class SolverKitti(object):
             with torch.no_grad():
                 pred = self.model(data)
                 output = pred.view(self.batch_size, 114, 2, 9)
-                loss, f1_score = compute_loss(output, target)
+                loss, f1_score, specific_losses = compute_loss(output, target)
 
-        return output, loss, f1_score
+        return output, loss, f1_score, specific_losses
         
-    def PlotAndSave(self, loss):
+    def PlotAndSave(self, loss, specific_losses):
         '''
         Plot loss live during training
         
@@ -325,10 +343,26 @@ class SolverKitti(object):
         '''
         
         self.train_losses.append(float(loss))
-        plt.plot(np.arange(1, len(self.train_losses) + 1), self.train_losses, label ='', color='blue')
+        self.bbox_losses.append(float(specific_losses[0]))
+        self.conf_losses.append(float(specific_losses[1]))
+        self.backgnd_losses.append(float(specific_losses[2]))
+        self.cls_losses.append(float(specific_losses[3]))
+        
+        x_plot = np.arange(1, len(self.train_losses) + 1)
+        
+        plt.plot(x_plot, self.train_losses, label='Total Loss', color='blue')
+        plt.plot(x_plot, self.bbox_losses, label='BBox Loss', color='red')
+        plt.plot(x_plot, self.conf_losses, label='Confidence Loss', color='green')
+        plt.plot(x_plot, self.backgnd_losses, label='Background Loss', color='purple')
+        plt.plot(x_plot, self.cls_losses, label='Classification Loss', color='yellow')        
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
         plt.title('Training Loss Over Time')
+        
+        # Add a legend showing what each line represents only on first iteration
+        if len(self.train_losses) == 1:
+            plt.legend() 
+            
         plt.pause(0.0000001)
         
         fig_dir = os.path.join(root_directory, "figs")
