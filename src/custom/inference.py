@@ -26,7 +26,7 @@ else:
 
 # Load weights from trained model and set model in eval mode
 basedir = pathlib.Path(__file__).parent.parent.parent.resolve()
-state_dict = torch.load(str(basedir) + "/models/06_12-22:23:37/simpleyolo_loss_0.764_epoch_38.pt")
+state_dict = torch.load(str(basedir) + "/models/simpleyolo_loss_169.434_f1_tensor(0.4907)_epoch_46.pt")
 model.load_state_dict(state_dict)
 model.eval()
 
@@ -41,8 +41,8 @@ elif data_type == "kitti":
 # input_rgb = Image.open(image_path).convert("RGB")
 # input_tensor = preprocess(input_rgb).unsqueeze(0)
 
-img = test_dataset[7][0]
-label = test_dataset[7][1] # (n,5) = number of boxes, 4 bbox coords and 1 class ID
+img = test_dataset[6][0]
+label = test_dataset[6][1] # (n,5) = number of boxes, 4 bbox coords and 1 class ID
 input_tensor = img.unsqueeze(0)
 
 # Run inference

@@ -22,7 +22,7 @@ def ProcessOutputImg(img, output, label, num_classes):
     output[..., 5:5+num_classes] = torch.softmax(output[:, 5:5+num_classes], dim=-1)
 
     # Find gridboxes in output with some confidence
-    conf_level = 0.8 # This is the min confidence we want our bbox model to be
+    conf_level = 0.00001 # This is the min confidence we want our bbox model to be
     conf_mask = output[:,4] > conf_level
     
     # Keep only the confident bboxes and bring them back to correct img size
@@ -36,53 +36,69 @@ def ProcessOutputImg(img, output, label, num_classes):
     # Bring image back to normal state
     denormalize = transforms.Normalize(mean=[-0.5 / 0.5, -0.5 / 0.5, -0.5 / 0.5], std=[1 / 0.5, 1 / 0.5, 1 / 0.5])
     img = denormalize(img).permute(1,2,0)
-    img_copy = img.clone()
     
-    # Loop through detected objects in predictions then labels and plot the bboxes
-    for obj_list in [preds, label]:
-        for obj in obj_list:
-            x,y,w,h,clas = [int(val) for val in torch.round(obj)]
+    fig, ax = plt.subplots(1)
 
-            if clas == 0: # red
-                RGB = torch.tensor([1,0,0])
-            elif clas == 1: # green
-                RGB = torch.tensor([0,1,0])
-            elif clas == 2: # blue
-                RGB = torch.tensor([0,0,1])
-            else: # purple
-                RGB = torch.tensor([.5,0,.5])
+    class_colors = {
+        0: 'red',
+        1: 'green',
+        2: 'blue',
+        3: 'purple'
+    }
+     
+    # Loop through detected objects in predictions then labels and plot the bboxes
+    for obj in preds:
             
-            if y>h:
-                start_x = h
-                end_x = y
-            else:
-                start_x = y
-                end_x = h
-            if x>w:
-                start_y = w
-                end_y = x
-            else:
-                start_y = x
-                end_y = w
-            
-            img[start_x:end_x,start_y:end_y,:] = RGB
-            
-            bw = 5 # border width
-            img[start_x+bw:end_x-bw,start_y+bw:end_y-bw,:] = img_copy[start_x+bw:end_x-bw,start_y+bw:end_y-bw,:]
-            
-            # ensure future bounding boxes aren't overwritten by the original img
-            img_copy = img.clone()
+        x, y, w, h, clas = [float(val.item()) for val in obj]
+        x1, y1, x2, y2 = int(x), int(y), int(w), int(h)
         
+        start_x = min(y1, y2)
+        start_y = min(x1, x2)
+        box_w = abs(x2 - x1)
+        box_h = abs(y2 - y1)
         
-    # After plotting your boxes and before `plt.show()`:
+        rect = mpatches.Rectangle((start_y, start_x), box_w, box_h,
+                                fill=False, 
+                                edgecolor=class_colors[int(clas)], 
+                                linewidth=1.5, 
+                                linestyle='-',
+                                label="True" if clas == 0 else "_nolegend_") # Use _nolegend_ to avoid repeating in legend
+        
+        ax.add_patch(rect)
+    
+    for obj in label:
+            
+        x, y, w, h, clas = [float(val.item()) for val in obj]
+        x1, y1, x2, y2 = int(x), int(y), int(w), int(h)
+        
+        start_x = min(y1, y2)
+        start_y = min(x1, x2)
+        box_w = abs(x2 - x1)
+        box_h = abs(y2 - y1)
+        
+        rect = mpatches.Rectangle((start_y, start_x), box_w, box_h,
+                                fill=False, 
+                                edgecolor=class_colors[int(clas)], 
+                                linewidth=1.5, 
+                                linestyle='--',
+                                label="True" if clas == 0 else "_nolegend_") # Use _nolegend_ to avoid repeating in legend
+    
+        ax.add_patch(rect)
+          
+    # Create separate legends for True and Predicted
+    true_patch = mpatches.Patch(color='black', label='True Labels (solid)')
+    pred_patch = mpatches.Patch(color='black', label='Predictions (dashed)')
+    
+    # Class legend (just color reference)
     red_patch = mpatches.Patch(color='red', label='Car')
     green_patch = mpatches.Patch(color='green', label='Van')
     blue_patch = mpatches.Patch(color='blue', label='Pedestrian')
     purple_patch = mpatches.Patch(color='purple', label='Cyclist')
-
-    plt.legend(handles=[red_patch, green_patch, blue_patch, purple_patch])
-
-    plt.imshow(img)            
+    
+    plt.legend(handles=[true_patch, pred_patch, red_patch, green_patch, blue_patch, purple_patch],
+               loc='upper right')
+    plt.axis('off')
+    ax.imshow(img)
     plt.show()
     
 def ShowResults(img, output):
