@@ -195,10 +195,6 @@ class SolverKitti(object):
         backgroundLosses = AverageMeter()
         classScoreLosses = AverageMeter()
 
-        # Initialize confusion matrix (used during validation)
-        num_class = 10
-        cm = torch.zeros(num_class, num_class, device=self.device)
-
         # Determine if we are in training or evaluation mode
         is_training = self.model.training
 
@@ -304,14 +300,20 @@ class SolverKitti(object):
         output = None
         loss = None
         precision = None
-        
+
+        num_anchors = 2
+        num_classes = 4
+        bbox_coords = 4
+        conf_measure = 1
+
         # If in training mode, update weights, otherwise do not
         if self.model.training:
 
             # Call the forward pass on the model. The data model() automatically calls model.forward()
             pred = self.model(data)
+
             # Reshape output to 2 bounding boxes per gridbox and ...?
-            output = pred.view(self.batch_size, 114, 2, 9)
+            output = pred.view(self.batch_size, 114, num_anchors, bbox_coords + conf_measure + num_classes)
 
             # Calculate loss
             loss, f1_score, specific_losses = compute_loss(output, target)
@@ -326,7 +328,7 @@ class SolverKitti(object):
             # Do not update gradients
             with torch.no_grad():
                 pred = self.model(data)
-                output = pred.view(self.batch_size, 114, 2, 9)
+                output = pred.view(self.batch_size, 114, 2, 5 + num_classes)
                 loss, f1_score, specific_losses = compute_loss(output, target)
 
         return output, loss, f1_score, specific_losses
@@ -351,7 +353,7 @@ class SolverKitti(object):
         x_plot = np.arange(1, len(self.train_losses) + 1)
         
         plt.plot(x_plot, self.train_losses, label='Total Loss', color='blue')
-        plt.plot(x_plot, self.bbox_losses, label='BBox Loss', color='red')
+        plt.plot(x_plot, self.bbox_losses, label='BBox Loss', color='black')
         plt.plot(x_plot, self.conf_losses, label='Confidence Loss', color='green')
         plt.plot(x_plot, self.backgnd_losses, label='Background Loss', color='purple')
         plt.plot(x_plot, self.cls_losses, label='Classification Loss', color='yellow')        
