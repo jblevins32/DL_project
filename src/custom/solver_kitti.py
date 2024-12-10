@@ -163,7 +163,7 @@ class SolverKitti(object):
                         os.makedirs(specific_model_dir)
 
                     loss_string = '_loss_' + str(round(loss, 3))
-                    f1_string = '_f1_' + str(f1_score.item())
+                    f1_string = '_f1_' + f"{f1_score.item():.4f}"
                     epoch_string = "_epoch_" + str(epoch)
 
                     model_name = self.model_type.lower() + loss_string + f1_string + epoch_string + ".pt"
