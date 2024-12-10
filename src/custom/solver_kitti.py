@@ -40,11 +40,11 @@ class SolverKitti(object):
         self.steps = kwargs.pop("steps", [6, 8])
         self.epochs = kwargs.pop("epochs", 10)
         self.warmup = kwargs.pop("warmup", 0)
-        self.save_best = kwargs.pop("save_best", True)
         self.model_type = kwargs.pop("model_type", "linear")
         self.data_type = kwargs.pop("data_type", "cifar")
         self.training_split_percentage = kwargs.pop("training_split_percentage", 0.8)
         self.dataset_percentage = kwargs.pop("dataset_percentage", 1.0)
+        self.save_delay_percent = kwargs.pop("save_delay_percent", 0.1)
         
         # Define the data
         if self.data_type == "cifar":
@@ -79,6 +79,9 @@ class SolverKitti(object):
         self.conf_losses = []
         self.backgnd_losses = []
         self.cls_losses = []
+
+        self.previous_best_model_path = None
+
         self._reset()
 
     def _reset(self):
@@ -114,10 +117,15 @@ class SolverKitti(object):
         if not os.path.exists(model_dir):
             os.makedirs(model_dir)
 
+        root_fig_dir = os.path.join(root_directory, "figs")
+        if not os.path.exists(root_fig_dir):
+            os.makedirs(root_fig_dir)
+
         # Format the time
         current_time = datetime.now()
         formatted_time = current_time.strftime("%d_%m-%H:%M:%S")
         specific_model_dir = os.path.join(model_dir, formatted_time)
+        specific_fig_dir = os.path.join(root_fig_dir, formatted_time)
 
         # Main training loop
         for epoch in range(self.epochs):
@@ -138,34 +146,38 @@ class SolverKitti(object):
             self.model.eval()
             f1_score = self.MainLoop(epoch, self.val_loader)
 
+            if epoch == 0:
+                self.best_loss = loss
+                self.best_model = copy.deepcopy(self.model)
+
             # Store best model
             if loss < self.best_loss: # was accuracy but accuracy is not functional yet
                 self.best_loss = loss
                 self.best_model = copy.deepcopy(self.model)
-            elif epoch == 0:
-                self.best_loss = loss
-                self.best_model = copy.deepcopy(self.model)
 
-            if f1_score > self.best_f1:
-                self.best_f1 = f1_score
-                print("New best f1") # could save model here too if we want
-            
-            if self.save_best and epoch > floor(self.epochs * 0.3):
+                if epoch >= floor(self.epochs * self.save_delay_percent):
 
-                if not os.path.exists(specific_model_dir):
-                    os.makedirs(specific_model_dir)
+                    if not os.path.exists(specific_model_dir):
+                        os.makedirs(specific_model_dir)
 
-                loss_string = '_loss_' + str(round(loss,3))
-                f1_string = '_f1_' + str(f1_score)
-                epoch_string = "_epoch_" + str(epoch)
+                    loss_string = '_loss_' + str(round(loss, 3))
+                    f1_string = '_f1_' + str(f1_score.item())
+                    epoch_string = "_epoch_" + str(epoch)
 
-                model_name = self.model_type.lower() + loss_string + f1_string + epoch_string + ".pt"
-                model_path = os.path.join(specific_model_dir, model_name)
+                    model_name = self.model_type.lower() + loss_string + f1_string + epoch_string + ".pt"
+                    model_path = os.path.join(specific_model_dir, model_name)
 
-                torch.save(self.best_model.state_dict(), model_path)
-                
+                    torch.save(self.best_model.state_dict(), model_path)
+
+                    # delete last best model
+                    if self.previous_best_model_path != None and os.path.exists(self.previous_best_model_path):
+                        os.remove(self.previous_best_model_path)
+
+                    # update last best model path
+                    self.previous_best_model_path = model_path
+
             # Plot
-            self.PlotAndSave(loss, specific_losses)
+            self.PlotAndSave(loss, specific_losses, specific_fig_dir)
             
             print(f'Epoch {epoch} took {round(time.time()-epoch_start_time,2)} seconds')
             
@@ -333,7 +345,7 @@ class SolverKitti(object):
 
         return output, loss, f1_score, specific_losses
         
-    def PlotAndSave(self, loss, specific_losses):
+    def PlotAndSave(self, loss, specific_losses, specific_fig_dir):
         '''
         Plot loss live during training
         
@@ -343,6 +355,9 @@ class SolverKitti(object):
         Returns:
             None, plots loss over epoch
         '''
+
+        if not os.path.exists(specific_fig_dir):
+            os.makedirs(specific_fig_dir)
         
         self.train_losses.append(float(loss))
         self.bbox_losses.append(float(specific_losses[0]))
@@ -361,19 +376,13 @@ class SolverKitti(object):
         plt.ylabel('Loss')
         plt.title('Training Loss Over Time')
         
-        # Add a legend showing what each line represents only on first iteration
-        if len(self.train_losses) == 1:
-            plt.legend() 
+        plt.legend()
             
         plt.pause(0.0000001)
-        
-        fig_dir = os.path.join(root_directory, "figs")
-        if not os.path.exists(fig_dir):
-            os.makedirs(fig_dir)
-            
-        fig_name_png = f'figs/loss.png'
-        fig_name_eps = f'figs/loss.eps'
-        plt.savefig(fig_name_png)
+
+        fig_png_path = os.path.join(specific_fig_dir, "loss.png")
+        fig_name_eps = os.path.join(specific_fig_dir, "loss.eps")
+        plt.savefig(fig_png_path)
         plt.savefig(fig_name_eps)
             
     
