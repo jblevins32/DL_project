@@ -13,5 +13,5 @@ Train:
 
   # Between 0 and 1:
   training_split_percentage: 0.8
-  dataset_percentage: 0.01 
+  dataset_percentage: 1.0
   save_delay_percent: 0.0
