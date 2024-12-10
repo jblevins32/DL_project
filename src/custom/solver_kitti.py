@@ -233,13 +233,13 @@ class SolverKitti(object):
                 if batch_idx % 10 == 0:
                     print(
                         "Epoch: [{0}/{1}][{2}/{3}] | "
-                        "Time {iter_time.val:.3f} ({iter_time.avg:.3f}) | "
-                        "Loss {loss.val:.4f} ({loss.avg:.4f}) | "
-                        "bboxL {bboxLoss.val:.4f} ({bboxLoss.avg:.4f}) | "
-                        "confL {confidenceLoss.val:.4f} ({confidenceLoss.avg:.4f}) | "
-                        "backgndL {backgroundLoss.val:.4f} ({backgroundLoss.avg:.4f}) | "
-                        "clsL {classScoreLoss.val:.4f} ({classScoreLoss.avg:.4f}) | "
-                        "F1 {top1.val:.4f} ({top1.avg:.4f})"
+                        "Time {iter_time.val:.2f} ({iter_time.avg:.2f}) | "
+                        "Loss {loss.val:.2f} ({loss.avg:.2f}) | "
+                        "bboxL {bboxLoss.val:.2f} ({bboxLoss.avg:.2f}) | "
+                        "confL {confidenceLoss.val:.2f} ({confidenceLoss.avg:.2f}) | "
+                        "backgndL {backgroundLoss.val:.2f} ({backgroundLoss.avg:.2f}) | "
+                        "clsL {classScoreLoss.val:.2f} ({classScoreLoss.avg:.2f}) | "
+                        "F1 {top1.val:.2f} ({top1.avg:.2f})"
                         .format(
                             epoch, self.epochs, batch_idx, len(data_loader),
                             iter_time=iter_time, loss=losses, top1=f1_score, bboxLoss = bboxLosses, confidenceLoss = confidenceLosses, backgroundLoss = backgroundLosses, classScoreLoss = classScoreLosses
