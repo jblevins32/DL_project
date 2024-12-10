@@ -33,20 +33,53 @@ def ProcessOutputImg(img, output, label, num_classes):
     preds = resulting_boxes[:,:5]
     preds[:,4] = torch.argmax(resulting_boxes[:,5:],dim=1)
     
+    # Optional: Compare image normalization (grey scale, rgb, etc)
+    # CompareNormalization(img)
+    
     # Bring image back to normal state
     denormalize = transforms.Normalize(mean=[-0.5 / 0.5, -0.5 / 0.5, -0.5 / 0.5], std=[1 / 0.5, 1 / 0.5, 1 / 0.5])
     img = denormalize(img).permute(1,2,0)
     
-    fig, ax = plt.subplots(1)
+    # Show the image with boxes
+    boxes = (preds, label)
+    DrawBBox(img,boxes,num_classes)
+    
+def DrawBBox(img, boxes, num_classes):
+    '''
+    General function for drawing bounding boxes on an image
+    
+    Args:
+        img: input image in (h,w,channels) format
+        boxes: either a...
+            - list of bounding boxes
+            - tuple of two lists of bounding boxes, where the first is the predictions and the second is the true labels
+        num_classes: number of classes
+        
+    Returns:
+        printed image with bboxes on it
+    '''
+    
+    _, ax = plt.subplots(1)
 
-    class_colors = {
-        0: 'red',
-        1: 'green',
-        2: 'blue',
-        3: 'purple'
-    }
+    # Define bbox colors based on the classes
+    if num_classes == 4:
+        class_colors = {
+            0: 'red',
+            1: 'green',
+            2: 'blue',
+            3: 'purple'
+        }
 
-    if num_classes == 5:
+        # Class legend (just color reference)
+        red_patch = mpatches.Patch(color='red', label='Car')
+        green_patch = mpatches.Patch(color='green', label='Van')
+        blue_patch = mpatches.Patch(color='blue', label='Pedestrian')
+        purple_patch = mpatches.Patch(color='purple', label='Cyclist')
+        
+        legend_handles=[red_patch, green_patch, blue_patch, purple_patch]
+
+    
+    elif num_classes == 5:
         class_colors = {
             0: 'orange',
             1: 'red',
@@ -54,81 +87,102 @@ def ProcessOutputImg(img, output, label, num_classes):
             3: 'blue',
             4: 'purple'
         }
-     
-    # Loop through detected objects in predictions then labels and plot the bboxes
-    for obj in preds:
+        
+        # Class legend (just color reference)
+        orange_patch = mpatches.Patch(color='orange', label='Background')
+        red_patch = mpatches.Patch(color='red', label='Car')
+        green_patch = mpatches.Patch(color='green', label='Van')
+        blue_patch = mpatches.Patch(color='blue', label='Pedestrian')
+        purple_patch = mpatches.Patch(color='purple', label='Cyclist')
+        
+        legend_handles=[orange_patch, red_patch, green_patch, blue_patch, purple_patch]
+    
+    # Conditional to discern if plotting predictions and truth or just one or the other
+    if isinstance(boxes, tuple):
+        preds, labels = boxes
+        
+        # Loop through detected objects in predictions then labels and plot the bboxes
+        for obj in preds:
+                
+            x, y, w, h, clas = [float(val.item()) for val in obj]
+            x1, y1, x2, y2 = int(x), int(y), int(w), int(h)
             
-        x, y, w, h, clas = [float(val.item()) for val in obj]
-        x1, y1, x2, y2 = int(x), int(y), int(w), int(h)
-        
-        start_x = min(y1, y2)
-        start_y = min(x1, x2)
-        box_w = abs(x2 - x1)
-        box_h = abs(y2 - y1)
-        
-        rect = mpatches.Rectangle((start_y, start_x), box_w, box_h,
-                                fill=False, 
-                                edgecolor=class_colors[int(clas)], 
-                                linewidth=1.5, 
-                                linestyle='-',
-                                label="True" if clas == 0 else "_nolegend_") # Use _nolegend_ to avoid repeating in legend
-        
-        ax.add_patch(rect)
-    
-    for obj in label:
+            start_x = min(y1, y2)
+            start_y = min(x1, x2)
+            box_w = abs(x2 - x1)
+            box_h = abs(y2 - y1)
             
-        x, y, w, h, clas = [float(val.item()) for val in obj]
-        x1, y1, x2, y2 = int(x), int(y), int(w), int(h)
+            rect = mpatches.Rectangle((start_y, start_x), box_w, box_h,
+                                    fill=False, 
+                                    edgecolor=class_colors[int(clas)], 
+                                    linewidth=1.5, 
+                                    linestyle='-',
+                                    label="True" if clas == 0 else "_nolegend_") # Use _nolegend_ to avoid repeating in legend
+            
+            ax.add_patch(rect)
         
-        start_x = min(y1, y2)
-        start_y = min(x1, x2)
-        box_w = abs(x2 - x1)
-        box_h = abs(y2 - y1)
+        for obj in labels:
+                
+            x, y, w, h, clas = [float(val.item()) for val in obj]
+            x1, y1, x2, y2 = int(x), int(y), int(w), int(h)
+            
+            start_x = min(y1, y2)
+            start_y = min(x1, x2)
+            box_w = abs(x2 - x1)
+            box_h = abs(y2 - y1)
+            
+            rect = mpatches.Rectangle((start_y, start_x), box_w, box_h,
+                                    fill=False, 
+                                    edgecolor=class_colors[int(clas)], 
+                                    linewidth=1.5, 
+                                    linestyle='--',
+                                    label="True" if clas == 0 else "_nolegend_") # Use _nolegend_ to avoid repeating in legend
         
-        rect = mpatches.Rectangle((start_y, start_x), box_w, box_h,
-                                fill=False, 
-                                edgecolor=class_colors[int(clas)], 
-                                linewidth=1.5, 
-                                linestyle='--',
-                                label="True" if clas == 0 else "_nolegend_") # Use _nolegend_ to avoid repeating in legend
+            ax.add_patch(rect)
     
-        ax.add_patch(rect)
-          
-    # Create separate legends for True and Predicted
-    true_patch = mpatches.Patch(color='black', label='True Labels (solid)')
-    pred_patch = mpatches.Patch(color='black', label='Predictions (dashed)')
+    else:
+        for obj in boxes:
+                
+            x, y, w, h, clas = [float(val.item()) for val in obj]
+            x1, y1, x2, y2 = int(x), int(y), int(w), int(h)
+            
+            start_x = min(y1, y2)
+            start_y = min(x1, x2)
+            box_w = abs(x2 - x1)
+            box_h = abs(y2 - y1)
+            
+            rect = mpatches.Rectangle((start_y, start_x), box_w, box_h,
+                                    fill=False, 
+                                    edgecolor=class_colors[int(clas)], 
+                                    linewidth=1.5, 
+                                    linestyle='-',
+                                    label="True" if clas == 0 else "_nolegend_") # Use _nolegend_ to avoid repeating in legend
+            
+            ax.add_patch(rect)
     
-    # Class legend (just color reference)
-    red_patch = mpatches.Patch(color='red', label='Car')
-    green_patch = mpatches.Patch(color='green', label='Van')
-    blue_patch = mpatches.Patch(color='blue', label='Pedestrian')
-    purple_patch = mpatches.Patch(color='purple', label='Cyclist')
-    
-    plt.legend(handles=[true_patch, pred_patch, red_patch, green_patch, blue_patch, purple_patch],
-               loc='upper right')
+    plt.legend(handles=legend_handles, loc='upper right')        
     plt.axis('off')
     ax.imshow(img)
     plt.show()
     
-def ShowResults(img, output):
+def CompareNormalization(img):
     '''
-    Process the output image by putting the bounding boxes and classifications on the image
+    Compare between normalization and original image
     
     Args:
-        input tensor (1,3,365,1220)
-        output (1,18,6,19)
-        
+        input tensor (1,channels,h,w)
+                
     Returns:
-        output with bounding boxes
+        printed subplot with comparison between normalization and original image
     '''
-    
+        
     # Demormalize the test image
     denormalize = transforms.Normalize(mean=[-0.5 / 0.5, -0.5 / 0.5, -0.5 / 0.5], std=[1 / 0.5, 1 / 0.5, 1 / 0.5])
     normal_img = denormalize(img).permute(1,2,0)
     img = img.permute(1,2,0)
     
     # Show images
-    fig, axes = plt.subplots(2, 1)
+    _, axes = plt.subplots(2, 1)
 
     axes[0].imshow(normal_img)
     axes[0].set_title("Original Image")
@@ -138,7 +192,5 @@ def ShowResults(img, output):
     axes[1].imshow(img)
     axes[1].set_title("Normalized Image")
     axes[1].axis("off")
-    
-    
     
     plt.show()
