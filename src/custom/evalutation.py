@@ -29,7 +29,7 @@ def compute_loss(predictions, targets, num_classes=5):
         target_single = targets[singleImageFrameIdx]  # (N_objects, 5)
 
         single_loss, single_f1Score, specific_losses = compute_loss_single_image(
-            pred_single, target_single, num_classes=num_classes
+            pred_single, target_single, num_classes
         )
 
         if singleImageFrameIdx == 0:
@@ -45,7 +45,7 @@ def compute_loss(predictions, targets, num_classes=5):
 
     return avg_loss, f1_score, specific_losses
 
-def compute_loss_single_image(predictions, targets, num_classes=5, img_size=(365, 1220),
+def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 1220),
                              grid_h=6, grid_w=19, conf_threshold=0.8, iou_threshold=0.5):
     """
     Compute loss and accuracy for a single image.
@@ -69,7 +69,7 @@ def compute_loss_single_image(predictions, targets, num_classes=5, img_size=(365
     device = predictions.device
     num_cells = grid_h * grid_w # generalize this
     num_anchors = predictions.shape[1] # number of bounding boxes per gridbox
-    assert predictions.shape == (num_cells, num_anchors, 10), "Prediction shape mismatch."
+    assert predictions.shape == (num_cells, num_anchors, 5 + num_classes), "Prediction shape mismatch."
 
     img_h, img_w = img_size
 
