@@ -3,16 +3,8 @@ import torch
 from torch.utils.data import Dataset
 from PIL import Image
 
-CLASS_MAPPING = {
-    "NoObj": 0,
-    "Car": 1,
-    "Van": 2,
-    "Pedestrian": 3,
-    "Cyclist": 4,
-}
-
 class KittiDataset(Dataset):
-    def __init__(self, image_dir, label_dir, transform=None):
+    def __init__(self, image_dir, label_dir, transform=None, num_classes=4):
         """
         Args:
             image_dir (str): Path to the root directory of training images.
@@ -27,6 +19,7 @@ class KittiDataset(Dataset):
         self.desiredWidth = 1220
         self.desiredHeight = 365
 
+        self.num_classes = num_classes
 
         # Change to True to recompute croppings if they already exist
         self.shouldCrop = False
@@ -59,7 +52,7 @@ class KittiDataset(Dataset):
                 frame_idx = int(label[0])
                 bbox = list(map(float, label[6:10]))
                 class_name = label[2]
-                class_id = CLASS_MAPPING.get(class_name, -1)  # Default to -1 for unknown classes
+                class_id = self.getClassMapping(class_name)
                 if class_id != -1:
                     if frame_idx not in frame_labels:
                         frame_labels[frame_idx] = []
@@ -145,3 +138,24 @@ class KittiDataset(Dataset):
 
         # Save the cropped image
         image_cropped.save(croppedImagePath)
+
+
+    def getClassMapping(self, classStr):
+        if self.num_classes == 5:
+            CLASS_MAPPING = {
+                "NoObj": 0,
+                "Car": 1,
+                "Van": 2,
+                "Pedestrian": 3,
+                "Cyclist": 4,
+            }
+
+            return CLASS_MAPPING.get(classStr, -1)
+        else:
+            CLASS_MAPPING = {
+                "Car": 0,
+                "Van": 1,
+                "Pedestrian": 2,
+                "Cyclist": 3,
+            }
+            return CLASS_MAPPING.get(classStr, -1)

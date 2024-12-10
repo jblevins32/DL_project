@@ -17,16 +17,17 @@ model_type = kwargs.pop("model_type", "linear")
 data_type = kwargs.pop("data_type", "cifar")
 training_split_percentage = kwargs.pop("training_split_percentage", 0.8)
 dataset_percentage = kwargs.pop("dataset_percentage", 1.0)
+num_classes = kwargs.pop("num_classes", 4)
 
 # Load model
 if model_type == "simpleYOLO":
-  model = SimpleYOLO()
+  model = SimpleYOLO(num_classes=num_classes)
 else:
   model = MyModel(model_type, batch_size)
 
 # Load weights from trained model and set model in eval mode
 basedir = pathlib.Path(__file__).parent.parent.parent.resolve()
-state_dict = torch.load(str(basedir) + "/models/simpleyolo_loss_169.434_f1_tensor(0.4907)_epoch_46.pt")
+state_dict = torch.load(str(basedir) + "/models/4-class-jacob/simpleyolo_loss_169.434_f1_tensor(0.4907)_epoch_46.pt")
 model.load_state_dict(state_dict)
 model.eval()
 
@@ -41,8 +42,11 @@ elif data_type == "kitti":
 # input_rgb = Image.open(image_path).convert("RGB")
 # input_tensor = preprocess(input_rgb).unsqueeze(0)
 
-img = test_dataset[6][0]
-label = test_dataset[6][1] # (n,5) = number of boxes, 4 bbox coords and 1 class ID
+# Set here to test specific frame
+image_idx = 0
+
+img = test_dataset[image_idx][0]
+label = test_dataset[image_idx][1] # (n,5) = number of boxes, 4 bbox coords and 1 class ID
 input_tensor = img.unsqueeze(0)
 
 # Run inference
@@ -51,7 +55,7 @@ with torch.no_grad():
   
 # Process output kitti
 # ShowResults(img, output)
-predictions = ProcessOutputImg(img, output, label, num_classes = 4)
+predictions = ProcessOutputImg(img, output, label, num_classes = num_classes)
 
 
 

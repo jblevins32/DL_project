@@ -9,8 +9,9 @@ Train:
   gamma: 1
   model_type: "simpleYOLO" # linear, alexnet, resnet, customcnn, customcnn_kitti, simpleYOLO
   data_type: "kitti" # cifar, kitti
+  num_classes: 4
 
   # Between 0 and 1:
   training_split_percentage: 0.8
   dataset_percentage: 0.01 
-  save_delay_percent: 1
+  save_delay_percent: 0.0

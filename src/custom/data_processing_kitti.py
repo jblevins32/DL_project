@@ -7,7 +7,8 @@ from torchvision import transforms
 import os
 from globals import root_directory
 
-def DataProcessorKitti(batch_size, training_split_percentage=0.8, dataset_percentage=1.0):
+
+def DataProcessorKitti(batch_size, training_split_percentage=0.8, dataset_percentage=1.0, num_classes=4):
 
     dataDownloader = KittiDataDownloader()
     dataDownloader.prepareDataset()
@@ -21,7 +22,7 @@ def DataProcessorKitti(batch_size, training_split_percentage=0.8, dataset_percen
     ])
 
     # Create the dataset
-    dataset = KittiDataset(image_dir=image_dir, label_dir=label_dir, transform=transform)
+    dataset = KittiDataset(image_dir=image_dir, label_dir=label_dir, transform=transform, num_classes=num_classes)
 
     # Split indices for train, validation, and test
 

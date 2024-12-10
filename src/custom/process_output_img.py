@@ -15,7 +15,7 @@ def ProcessOutputImg(img, output, label, num_classes):
         shows output img with bounding boxes
     '''
     
-    output = output.reshape(228,9)
+    output = output.reshape(228, 5 + num_classes)
     
     # sigmoid or softmax everything
     output[..., 0:5] = torch.sigmoid(output[..., 0:5])
@@ -40,11 +40,20 @@ def ProcessOutputImg(img, output, label, num_classes):
     fig, ax = plt.subplots(1)
 
     class_colors = {
-        0: 'red',
+        0: 'black',
         1: 'green',
         2: 'blue',
         3: 'purple'
     }
+
+    if num_classes == 5:
+        class_colors = {
+            0: 'red',
+            1: 'black',
+            2: 'green',
+            3: 'blue',
+            4: 'purple'
+        }
      
     # Loop through detected objects in predictions then labels and plot the bboxes
     for obj in preds:

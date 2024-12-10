@@ -45,6 +45,7 @@ class SolverKitti(object):
         self.training_split_percentage = kwargs.pop("training_split_percentage", 0.8)
         self.dataset_percentage = kwargs.pop("dataset_percentage", 1.0)
         self.save_delay_percent = kwargs.pop("save_delay_percent", 0.1)
+        self.num_classes = kwargs.pop("num_classes", 4)
         
         # Define the data
         if self.data_type == "cifar":
@@ -52,10 +53,11 @@ class SolverKitti(object):
         elif self.data_type == "kitti": 
             self.train_loader, self.val_loader, self.test_dataset = DataProcessorKitti(self.batch_size,
                                                                                        self.training_split_percentage,
-                                                                                       self.dataset_percentage)
+                                                                                       self.dataset_percentage,
+                                                                                       num_classes=self.num_classes)
 
         # Define the NN model
-        self.model = SimpleYOLO()
+        self.model = SimpleYOLO(num_classes=self.num_classes)
         # self.model = MyModel(self.model_type,self.batch_size)
         summary(self.model, input_size=(self.batch_size, 3, 365, 1220))
 
@@ -314,7 +316,6 @@ class SolverKitti(object):
         precision = None
 
         num_anchors = 2
-        num_classes = 5
         bbox_coords = 4
         conf_measure = 1
 
@@ -325,10 +326,10 @@ class SolverKitti(object):
             pred = self.model(data)
 
             # Reshape output to 2 bounding boxes per gridbox and ...?
-            output = pred.view(self.batch_size, 114, num_anchors, bbox_coords + conf_measure + num_classes)
+            output = pred.view(self.batch_size, 114, num_anchors, bbox_coords + conf_measure + self.num_classes)
 
             # Calculate loss
-            loss, f1_score, specific_losses = compute_loss(output, target)
+            loss, f1_score, specific_losses = compute_loss(output, target, self.num_classes)
             
             # Main backward pass to Update gradients
             self.optimizer.zero_grad()
@@ -340,8 +341,8 @@ class SolverKitti(object):
             # Do not update gradients
             with torch.no_grad():
                 pred = self.model(data)
-                output = pred.view(self.batch_size, 114, 2, 5 + num_classes)
-                loss, f1_score, specific_losses = compute_loss(output, target)
+                output = pred.view(self.batch_size, 114, 2, 5 + self.num_classes)
+                loss, f1_score, specific_losses = compute_loss(output, target, self.num_classes)
 
         return output, loss, f1_score, specific_losses
         
