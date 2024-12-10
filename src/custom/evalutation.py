@@ -168,10 +168,10 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     # lambda_classScore = 100.0
 
     # These are similar to the weights that the YOLO paper uses
-    lambda_boundingBoxes = 5
-    lambda_confidence = 1.0
+    lambda_boundingBoxes = 0.2
+    lambda_confidence = 60.0
     lambda_noObjectBoxes = 0.5
-    lambda_classScore = 1.0
+    lambda_classScore = 40.0
 
     # Calculating each component of loss with weights
     bboxLoss = lambda_boundingBoxes * bbox_loss

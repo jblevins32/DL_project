@@ -40,7 +40,7 @@ def ProcessOutputImg(img, output, label, num_classes):
     fig, ax = plt.subplots(1)
 
     class_colors = {
-        0: 'black',
+        0: 'red',
         1: 'green',
         2: 'blue',
         3: 'purple'
@@ -48,8 +48,8 @@ def ProcessOutputImg(img, output, label, num_classes):
 
     if num_classes == 5:
         class_colors = {
-            0: 'red',
-            1: 'black',
+            0: 'orange',
+            1: 'red',
             2: 'green',
             3: 'blue',
             4: 'purple'

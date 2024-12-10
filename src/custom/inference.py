@@ -43,7 +43,7 @@ elif data_type == "kitti":
 # input_tensor = preprocess(input_rgb).unsqueeze(0)
 
 # Set here to test specific frame
-image_idx = 0
+image_idx = 10
 
 img = test_dataset[image_idx][0]
 label = test_dataset[image_idx][1] # (n,5) = number of boxes, 4 bbox coords and 1 class ID
