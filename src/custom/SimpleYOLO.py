@@ -14,7 +14,7 @@ class SimpleYOLO(nn.Module):
             return nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1),
                 nn.BatchNorm2d(out_channels),
-                nn.ReLU(inplace=True)
+                nn.LeakyReLU(0.1,inplace=True)
             )
 
         # Additional convolution block without downsampling
@@ -22,7 +22,7 @@ class SimpleYOLO(nn.Module):
             return nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1),
                 nn.BatchNorm2d(out_channels),
-                nn.ReLU(inplace=True)
+                nn.LeakyReLU(0.1,inplace=True)
             )
 
         # Final block with kernel_size=2, stride=2 to get exactly 6x19
@@ -30,7 +30,7 @@ class SimpleYOLO(nn.Module):
             return nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2, padding=0),
                 nn.BatchNorm2d(out_channels),
-                nn.ReLU(inplace=True)
+                nn.LeakyReLU(0.1,inplace=True)
             )
 
         # Downsample and increase depth

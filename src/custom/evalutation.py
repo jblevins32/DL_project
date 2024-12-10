@@ -141,14 +141,18 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     noobj_mask = target_tensor[..., 4] == 0.0
 
     # Loss functions
-    loc_loss_fn = nn.SmoothL1Loss(reduction='sum')
+    bbox_loss_fn = nn.SmoothL1Loss(reduction='sum')
     bce_loss_conf = nn.BCEWithLogitsLoss(reduction='sum')
     bce_loss_class = nn.CrossEntropyLoss(reduction='sum')
+
+    # bbox_loss_fn = nn.SmoothL1Loss(reduction='sum')
+    # bce_loss_conf = nn.MSELoss(reduction='sum')
+    # bce_loss_class = nn.MSELoss(reduction='sum')
 
     # Localization loss
     pred_imgScale = torch.sigmoid(predictions[obj_mask][..., 0:4]) * torch.tensor([img_w, img_h, img_w, img_h], device=device)
     target_imgScale = target_tensor[obj_mask][..., 0:4] * torch.tensor([img_w, img_h, img_w, img_h], device=device)
-    loc_loss = loc_loss_fn(pred_imgScale, target_imgScale)
+    bbox_loss = bbox_loss_fn(pred_imgScale, target_imgScale)
 
     # Confidence loss
     conf_loss_obj = bce_loss_conf(predictions[obj_mask][..., 4], target_tensor[obj_mask][..., 4])
@@ -158,13 +162,19 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     class_loss = bce_loss_class(predictions[obj_mask][..., 5:5+num_classes], target_tensor[obj_mask][..., 5:5+num_classes])
 
     # Weights for each component of the loss function, currently evenly weighted
-    lambda_boundingBoxes = 0.5
-    lambda_confidence = 100.0
-    lambda_noObjectBoxes = 1.0
-    lambda_classScore = 100.0
+    # lambda_boundingBoxes = 0.5
+    # lambda_confidence = 100.0
+    # lambda_noObjectBoxes = 1.0
+    # lambda_classScore = 100.0
+
+    # These are similar to the weights that the YOLO paper uses
+    lambda_boundingBoxes = 5
+    lambda_confidence = 1.0
+    lambda_noObjectBoxes = 0.5
+    lambda_classScore = 1.0
 
     # Calculating each component of loss with weights
-    bboxLoss = lambda_boundingBoxes * loc_loss
+    bboxLoss = lambda_boundingBoxes * bbox_loss
     confidenceLoss = lambda_confidence * conf_loss_obj
     backgroundLoss = lambda_noObjectBoxes * conf_loss_noobj
     classScoreLoss = lambda_classScore * class_loss

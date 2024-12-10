@@ -293,7 +293,7 @@ class SolverKitti(object):
             # for i, acc_i in enumerate(per_cls_acc):
             #     print("Accuracy of Class {}: {:.4f}".format(i, acc_i))
 
-            print("* F1_Score @1: {top1.avg:.4f}".format(top1=f1_score))
+            print("* F1_Score: {top1.avg:.4f}".format(top1=f1_score))
             return f1_score.avg
 
     def ComputeLossAccUpdateParams(self, data, target):
@@ -314,7 +314,7 @@ class SolverKitti(object):
         precision = None
 
         num_anchors = 2
-        num_classes = 4
+        num_classes = 5
         bbox_coords = 4
         conf_measure = 1
 
@@ -376,8 +376,10 @@ class SolverKitti(object):
         plt.ylabel('Loss')
         plt.title('Training Loss Over Time')
         
-        plt.legend()
-            
+        # Add a legend showing what each line represents only on first iteration
+        if len(self.train_losses) == 1:
+            plt.legend() 
+                        
         plt.pause(0.0000001)
 
         fig_png_path = os.path.join(specific_fig_dir, "loss.png")
