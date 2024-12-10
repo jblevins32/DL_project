@@ -80,6 +80,7 @@ class SolverKitti(object):
         self.conf_losses = []
         self.backgnd_losses = []
         self.cls_losses = []
+        self.f1_scores = []
 
         self.previous_best_model_path = None
 
@@ -163,7 +164,7 @@ class SolverKitti(object):
                         os.makedirs(specific_model_dir)
 
                     loss_string = '_loss_' + str(round(loss, 3))
-                    f1_string = '_f1_' + f"{f1_score.item():.4f}"
+                    f1_string = '_f1_' + f"{f1_score:.4f}"
                     epoch_string = "_epoch_" + str(epoch)
 
                     model_name = self.model_type.lower() + loss_string + f1_string + epoch_string + ".pt"
@@ -179,7 +180,7 @@ class SolverKitti(object):
                     self.previous_best_model_path = model_path
 
             # Plot
-            self.PlotAndSave(loss, specific_losses, specific_fig_dir)
+            self.PlotAndSave(loss, specific_losses, specific_fig_dir, f1_score)
             
             print(f'Epoch {epoch} took {round(time.time()-epoch_start_time,2)} seconds')
             
@@ -231,7 +232,7 @@ class SolverKitti(object):
             # Record start time
             start_batch = time.time()
 
-            # Compute outputs, loss, and accuracy
+            # Compute outputs, losses, and f1 score
             out, loss, batch_f1Score, specific_losses = self.ComputeLossAccUpdateParams(images, targets)
             
             bboxLoss, confidenceLoss, backgroundLoss, classScoreLoss = specific_losses
@@ -329,7 +330,7 @@ class SolverKitti(object):
             # Call the forward pass on the model. The data model() automatically calls model.forward()
             pred = self.model(data)
 
-            # Reshape output to 2 bounding boxes per gridbox and ...?
+            # Reshape output
             output = pred.view(self.batch_size, 114, num_anchors, bbox_coords + conf_measure + self.num_classes)
 
             # Calculate loss
@@ -350,7 +351,7 @@ class SolverKitti(object):
 
         return output, loss, f1_score, specific_losses
         
-    def PlotAndSave(self, loss, specific_losses, specific_fig_dir):
+    def PlotAndSave(self, loss, specific_losses, specific_fig_dir, f1_score_avg):
         '''
         Plot loss live during training
         
@@ -369,9 +370,12 @@ class SolverKitti(object):
         self.conf_losses.append(float(specific_losses[1]))
         self.backgnd_losses.append(float(specific_losses[2]))
         self.cls_losses.append(float(specific_losses[3]))
+        self.f1_scores.append(float(f1_score_avg))
         
         x_plot = np.arange(1, len(self.train_losses) + 1)
         
+        # Loss plot
+        plt.figure()
         plt.plot(x_plot, self.train_losses, label='Total Loss', color='blue')
         plt.plot(x_plot, self.bbox_losses, label='BBox Loss', color='black')
         plt.plot(x_plot, self.conf_losses, label='Confidence Loss', color='green')
@@ -379,16 +383,27 @@ class SolverKitti(object):
         plt.plot(x_plot, self.cls_losses, label='Classification Loss', color='yellow')        
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
-        plt.title('Training Loss Over Time')
         
         # Add a legend showing what each line represents only on first iteration
-        if len(self.train_losses) == 1:
-            plt.legend() 
+        plt.legend() 
                         
         plt.pause(0.0000001)
-
+        
         fig_png_path = os.path.join(specific_fig_dir, "loss.png")
         fig_name_eps = os.path.join(specific_fig_dir, "loss.eps")
+        plt.savefig(fig_png_path)
+        plt.savefig(fig_name_eps)
+        
+        # Precision plot
+        plt.figure()
+        plt.plot(x_plot, self.f1_scores, color='blue')
+        plt.xlabel('Epoch')
+        plt.ylabel('Precision')
+        
+        plt.pause(0.0000001)
+        
+        fig_png_path = os.path.join(specific_fig_dir, "precision.png")
+        fig_name_eps = os.path.join(specific_fig_dir, "precision.eps")
         plt.savefig(fig_png_path)
         plt.savefig(fig_name_eps)
             
