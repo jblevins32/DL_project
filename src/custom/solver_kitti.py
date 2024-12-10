@@ -1,6 +1,5 @@
 import os.path
 from math import floor
-
 import numpy as np
 import torch.nn as nn
 import time
@@ -8,7 +7,6 @@ import torch
 import copy
 from models import MyModel
 import matplotlib.pyplot as plt
-import pathlib
 from data_processing_cifar import DataProcessorCIFAR
 from data_processing_kitti import DataProcessorKitti
 from evalutation import compute_loss
@@ -16,6 +14,7 @@ from SimpleYOLO import SimpleYOLO
 from torchinfo import summary
 from datetime import datetime
 from globals import root_directory
+from process_output_img import DrawBBox
 
 class SolverKitti(object):
     def __init__(self, **kwargs):
@@ -49,7 +48,7 @@ class SolverKitti(object):
         
         # Define the data
         if self.data_type == "cifar":
-            self.train_loader, self.val_loader, self.test_dataset = DataProcessing(self.batch_size)
+            self.train_loader, self.val_loader, self.test_dataset = DataProcessorCIFAR(self.batch_size)
         elif self.data_type == "kitti": 
             self.train_loader, self.val_loader, self.test_dataset = DataProcessorKitti(self.batch_size,
                                                                                        self.training_split_percentage,
@@ -115,6 +114,7 @@ class SolverKitti(object):
         # Log start time of training
         train_time_start_overall = time.time()
 
+        # Build directories for models and figs
         model_dir = os.path.join(root_directory, "models")
         if not os.path.exists(model_dir):
             os.makedirs(model_dir)
@@ -142,21 +142,21 @@ class SolverKitti(object):
             self.model.train()
             loss, specific_losses = self.MainLoop(epoch, self.train_loader) # run the main loop of training to get the loss
             
-            print(f'Validating epoch {epoch}')
-            
             # Validate
+            print(f'Validating epoch {epoch}')
             self.model.eval()
             f1_score = self.MainLoop(epoch, self.val_loader)
 
+            # Store best model
             if epoch == 0:
                 self.best_loss = loss
                 self.best_model = copy.deepcopy(self.model)
 
-            # Store best model
             if loss < self.best_loss: # was accuracy but accuracy is not functional yet
                 self.best_loss = loss
                 self.best_model = copy.deepcopy(self.model)
 
+                # Only save model beyond a certain percent of epochs
                 if epoch >= floor(self.epochs * self.save_delay_percent):
 
                     if not os.path.exists(specific_model_dir):
@@ -223,6 +223,10 @@ class SolverKitti(object):
             images = torch.stack(images).to(self.device)
             # Move targets to the device
             targets = [t.to(self.device) for t in targets]
+            
+            # Uncomment below if you want to view current image and true labels for debugging purposes
+            # images = images.squeeze(0).permute(1,2,0)
+            # DrawBBox(images, targets[0], self.num_classes)
 
             # Record start time
             start_batch = time.time()
