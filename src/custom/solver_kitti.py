@@ -163,7 +163,7 @@ class SolverKitti(object):
                         os.makedirs(specific_model_dir)
 
                     loss_string = '_loss_' + str(round(loss, 3))
-                    f1_string = '_f1_' + f"{f1_score.item():.4f}"
+                    f1_string = '_f1_' + f"{f1_score:.4f}"
                     epoch_string = "_epoch_" + str(epoch)
 
                     model_name = self.model_type.lower() + loss_string + f1_string + epoch_string + ".pt"
@@ -231,7 +231,7 @@ class SolverKitti(object):
             # Record start time
             start_batch = time.time()
 
-            # Compute outputs, loss, and accuracy
+            # Compute outputs, losses, and f1 score
             out, loss, batch_f1Score, specific_losses = self.ComputeLossAccUpdateParams(images, targets)
             
             bboxLoss, confidenceLoss, backgroundLoss, classScoreLoss = specific_losses
@@ -329,7 +329,7 @@ class SolverKitti(object):
             # Call the forward pass on the model. The data model() automatically calls model.forward()
             pred = self.model(data)
 
-            # Reshape output to 2 bounding boxes per gridbox and ...?
+            # Reshape output
             output = pred.view(self.batch_size, 114, num_anchors, bbox_coords + conf_measure + self.num_classes)
 
             # Calculate loss

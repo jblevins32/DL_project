@@ -24,7 +24,8 @@ def compute_loss(predictions, targets, num_classes=5):
     
     # Compute loss for each image in a batch one at a time
     for singleImageFrameIdx in range(batch_size):
-        # predictions for single image
+        
+        # Extract predictions and targets for one image at a time in the batch
         pred_single = predictions[singleImageFrameIdx] # (num_cells, num_anchors, 9)
         target_single = targets[singleImageFrameIdx]  # (N_objects, 5)
 
@@ -67,7 +68,7 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     """
 
     device = predictions.device
-    num_cells = grid_h * grid_w # generalize this
+    num_cells = grid_h * grid_w
     num_anchors = predictions.shape[1] # number of bounding boxes per gridbox
     assert predictions.shape == (num_cells, num_anchors, 5 + num_classes), "Prediction shape mismatch."
 
@@ -84,27 +85,49 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     # 0:4 -> box coords, 4 -> conf, 5:9 -> one-hot classes
     target_tensor = torch.zeros_like(predictions, device=device)
 
-    # Assign targets to grid
+    # Build target tensor for comparison to prediction
+    TP = 0
+    FP = 0
     for gt in normalized_targets:
 
         # Extract normalized coordinates for grid target
         bbox_left_target, bbox_top_target, bbox_right_target, bbox_bottom_target, target_class_id = gt
-        target_class_id = int(target_class_id)
+        target_class_id = int(target_class_id) # Ensure class ID is an integer (should already be)
 
+        # Determine which cell the target is in
         cell_index = getPredictionCellForTargetBBOX(gt, grid_w, grid_h)
 
-        # Accuracy calculation
+        # Accuracy calculation. Compare the predicted image to this normalized target based on the gridcell location
         cell_pred = predictions[cell_index]  # (num_anchors, 9)
         pred_anchor_bboxes = cell_pred[:, 0:4]
         pred_anchor_confs = cell_pred[:, 4]
         pred_anchor_classes = cell_pred[:, 5:]
 
         # determines which of the anchors for this cell had higher confidence in prediction
-        max_conf, max_conf_idx = torch.max(pred_anchor_confs, dim=0)
-        pred_bbox = pred_anchor_bboxes[max_conf_idx]
-        pred_class = torch.argmax(pred_anchor_classes[max_conf_idx])
+        # max_conf, max_conf_idx = torch.max(pred_anchor_confs, dim=0)
+        # pred_bbox = pred_anchor_bboxes[max_conf_idx]
+        # pred_class = torch.argmax(pred_anchor_classes[max_conf_idx])
+        
+        ### Jacob's addition!
+        # Get IOU to determine which prediction in the target grid matches more closely with the target
+        iou = -float('inf')
+        conf_flag = True
+        for anchor_idx, pred_bbox in enumerate(pred_anchor_bboxes):
+            new_iou = bbox_iou(gt[0:4], pred_bbox)
+            if new_iou > iou:
+                iou = new_iou
+                max_conf_idx = anchor_idx # Keeping this name the same to avoid issues if we revert
+                
+                # Flag where if no boxes overlap, take the prediction with the higher confidence
+                if abs(iou) != 0:
+                    conf_flag = False
+                    
+        if conf_flag == False:
+            _, max_conf_idx = torch.max(pred_anchor_confs, dim=0)
 
-        # Assign to anchor with highest predicted confidence
+        ###
+        
+        # Assign true target to grid cell and the anchor with highest iou
         target_tensor[cell_index, max_conf_idx, 0] = bbox_left_target
         target_tensor[cell_index, max_conf_idx, 1] = bbox_top_target
         target_tensor[cell_index, max_conf_idx, 2] = bbox_right_target
@@ -115,6 +138,16 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
         class_vec = torch.zeros(num_classes, device=device)
         class_vec[target_class_id] = 1.0
         target_tensor[cell_index, max_conf_idx, 5:] = class_vec
+        
+        # Recall calc
+        pred_class = torch.argmax(torch.softmax(cell_pred[max_conf_idx][5:],dim=0))
+        true_class = torch.argmax(class_vec)
+        
+        if pred_class == true_class:
+            TP += 1
+        else:
+            FP += 1
+        
 
         # pred_left = pred_bbox[0] * img_w
         # pred_top = pred_bbox[1] * img_h
@@ -133,10 +166,10 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
             # if iou >= iou_threshold:
             #
 
-    target_tensor = target_tensor.reshape(num_cells * num_anchors, 5 + num_classes)
-    predictions = predictions.reshape(num_cells * num_anchors, 5 + num_classes)
+    # target_tensor = target_tensor.reshape(num_cells * num_anchors, 5 + num_classes)
+    # predictions = predictions.reshape(num_cells * num_anchors, 5 + num_classes)
 
-    # Masks
+    # Masks to separate the targets from the background for comparison
     obj_mask = target_tensor[..., 4] == 1.0
     noobj_mask = target_tensor[..., 4] == 0.0
 
@@ -145,14 +178,42 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     bce_loss_conf = nn.BCEWithLogitsLoss(reduction='sum')
     bce_loss_class = nn.CrossEntropyLoss(reduction='sum')
 
-    # bbox_loss_fn = nn.SmoothL1Loss(reduction='sum')
-    # bce_loss_conf = nn.MSELoss(reduction='sum')
-    # bce_loss_class = nn.MSELoss(reduction='sum')
+    bbox_loss_fn = nn.MSELoss(reduction='sum')
+    bce_loss_conf = nn.MSELoss(reduction='sum')
+    bce_loss_class = nn.MSELoss(reduction='sum')
 
     # Localization loss
-    pred_imgScale = torch.sigmoid(predictions[obj_mask][..., 0:4]) * torch.tensor([img_w, img_h, img_w, img_h], device=device)
-    target_imgScale = target_tensor[obj_mask][..., 0:4] * torch.tensor([img_w, img_h, img_w, img_h], device=device)
-    bbox_loss = bbox_loss_fn(pred_imgScale, target_imgScale)
+    pred_img = torch.sigmoid(predictions[obj_mask][..., 0:4]) * torch.tensor([img_w, img_h, img_w, img_h], device=device)
+    target_img = target_tensor[obj_mask][..., 0:4] * torch.tensor([img_w, img_h, img_w, img_h], device=device)
+    
+    # Using centers and bbox width, height for loss function
+    box_center_x = abs((pred_img[:,0] + pred_img[:,2])) / 2
+    box_center_y = abs((pred_img[:,1] + pred_img[:,3])) / 2
+    box_w = abs(pred_img[:,0] - pred_img[:,2])
+    box_h = abs(pred_img[:,0] - pred_img[:,2])
+    
+    pred_img_center_norm = torch.zeros_like(pred_img)
+    
+    pred_img_center_norm[:,0] = box_center_x / img_w
+    pred_img_center_norm[:,1] = box_center_y / img_h
+    pred_img_center_norm[:,2] = box_w / img_w
+    pred_img_center_norm[:,3] = box_h / img_h
+    
+    # Now for target image
+    box_center_x = abs((target_img[:,0] + target_img[:,2])) / 2
+    box_center_y = abs((target_img[:,1] + target_img[:,3])) / 2
+    box_w = abs(target_img[:,0] - pred_img[:,2])
+    box_h = abs(target_img[:,0] - target_img[:,2])
+    
+    target_img_center_norm = torch.zeros_like(pred_img)
+    
+    target_img_center_norm[:,0] = box_center_x / img_w
+    target_img_center_norm[:,1] = box_center_y / img_h
+    target_img_center_norm[:,2] = box_w / img_w
+    target_img_center_norm[:,3] = box_h / img_h
+    
+    # Potentially need to order the pred and target objects?
+    bbox_loss = bbox_loss_fn(pred_img_center_norm, target_img_center_norm)
 
     # Confidence loss
     conf_loss_obj = bce_loss_conf(predictions[obj_mask][..., 4], target_tensor[obj_mask][..., 4])
@@ -168,10 +229,10 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     # lambda_classScore = 100.0
 
     # These are similar to the weights that the YOLO paper uses
-    lambda_boundingBoxes = 0.2
-    lambda_confidence = 60.0
-    lambda_noObjectBoxes = 0.5
-    lambda_classScore = 40.0
+    lambda_boundingBoxes = 7
+    lambda_confidence = 3.0
+    lambda_noObjectBoxes = 0.25
+    lambda_classScore = 2
 
     # Calculating each component of loss with weights
     bboxLoss = lambda_boundingBoxes * bbox_loss
@@ -182,12 +243,15 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     # Combines loss function component functions into a total loss value
     total_loss = bboxLoss + confidenceLoss + backgroundLoss + classScoreLoss
 
-    # Metrics Calculation
-    predictedClassArray = torch.argmax(torch.softmax(predictions[:, 5:], dim=1), dim=1)
-    targetClassArray = torch.argmax(target_tensor[:, 5:], dim=1)
-    f1_score = multiclass_f1_score(predictedClassArray, targetClassArray, num_classes=num_classes)
+    # Metrics Calculation. We are comparing the entire predictions to the targets... is that right? 0 means class 0 so it is saying that we are getting most of them wrong. Only compare the found objects?;
+    # predictedClassArray = torch.argmax(torch.softmax(predictions[..., 5:], dim=2), dim=2) # this gives a 114x2 of what each anchor predicts as its class
+    # targetClassArray = torch.argmax(target_tensor[..., 5:], dim=2) 
+    # f1_score = multiclass_f1_score(predictedClassArray, targetClassArray, num_classes=num_classes)
+    
+    # Using precision for now since I know this metric is accurate
+    precision = TP/(TP+FP)
 
-    return total_loss, f1_score, (bboxLoss, confidenceLoss, backgroundLoss, classScoreLoss)
+    return total_loss, precision, (bboxLoss, confidenceLoss, backgroundLoss, classScoreLoss)
 
 def bbox_iou(box1, box2):
     """
@@ -212,13 +276,14 @@ def bbox_iou(box1, box2):
 def getPredictionCellForTargetBBOX(gt, grid_w, grid_h):
     # Extract normalized coordinates for grid target
     bbox_left_target, bbox_top_target, bbox_right_target, bbox_bottom_target, _ = gt
-
+    
+    # Determine center of this target
     x_center = (bbox_left_target + bbox_right_target) / 2.0
     y_center = (bbox_top_target + bbox_bottom_target) / 2.0
 
-    # rounding here to improve grid cell association rather than int truncation (basically floor)
-    cell_x = int(torch.round(x_center * grid_w))
-    cell_y = int(torch.round(y_center * grid_h))
+    # Determine which cell the target is in
+    cell_x = int(torch.floor(x_center * grid_w))
+    cell_y = int(torch.floor(y_center * grid_h))
 
     # Handle edges
     if cell_x >= grid_w:
