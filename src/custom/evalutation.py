@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torcheval.metrics.functional import multiclass_f1_score
 
-def compute_loss(predictions, targets, num_classes=4):
+def compute_loss(predictions, targets, num_classes=5):
     """
     Compute the YOLO-style loss and class accuracy for a batch of images.
 

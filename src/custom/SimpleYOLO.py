@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class SimpleYOLO(nn.Module):
-    def __init__(self, num_classes=4, num_anchors=2):
+    def __init__(self, num_classes=5, num_anchors=2):
         super(SimpleYOLO, self).__init__() # initializes subclass functions and variables within nn.Module
 
         # YOLO-like prediction layer:
