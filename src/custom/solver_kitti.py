@@ -5,12 +5,12 @@ import torch.nn as nn
 import time
 import torch
 import copy
-from models import MyModel
 import matplotlib.pyplot as plt
 from data_processing_cifar import DataProcessorCIFAR
 from data_processing_kitti import DataProcessorKitti
 from evalutation import compute_loss
 from SimpleYOLO import SimpleYOLO
+from MidYOLO import MidYOLO
 from torchinfo import summary
 from datetime import datetime
 from globals import root_directory
@@ -39,7 +39,7 @@ class SolverKitti(object):
         self.steps = kwargs.pop("steps", [6, 8])
         self.epochs = kwargs.pop("epochs", 10)
         self.warmup = kwargs.pop("warmup", 0)
-        self.model_type = kwargs.pop("model_type", "linear")
+        self.model_type = kwargs.pop("model_type", "simpleYOLO")
         self.data_type = kwargs.pop("data_type", "cifar")
         self.training_split_percentage = kwargs.pop("training_split_percentage", 0.8)
         self.dataset_percentage = kwargs.pop("dataset_percentage", 1.0)
@@ -56,8 +56,11 @@ class SolverKitti(object):
                                                                                        num_classes=self.num_classes)
 
         # Define the NN model
-        self.model = SimpleYOLO(num_classes=self.num_classes)
-        # self.model = MyModel(self.model_type,self.batch_size)
+        if self.model_type == "simpleYOLO":
+            self.model = SimpleYOLO(num_classes=self.num_classes)
+        elif self.model_type == "midYOLO":
+            self.model = MidYOLO(num_classes=self.num_classes)
+
         summary(self.model, input_size=(self.batch_size, 3, 365, 1220))
 
         # Define the optimizer

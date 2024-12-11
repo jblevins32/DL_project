@@ -7,11 +7,11 @@ Train:
   warmup: 0
   momentum: 0.9
   gamma: 1
-  model_type: "simpleYOLO" # linear, alexnet, resnet, customcnn, customcnn_kitti, simpleYOLO
+  model_type: "midYOLO" # simpleYOLO, midYOLO
   data_type: "kitti" # cifar, kitti
   num_classes: 4
 
   # Between 0 and 1:
   training_split_percentage: 0.8
-  dataset_percentage: 0.5
+  dataset_percentage: 0.01
   save_delay_percent: 0

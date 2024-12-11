@@ -1,10 +1,7 @@
 import pathlib
-import torch
-from torchvision import transforms
-from PIL import Image
 from models import MyModel
 from SimpleYOLO import SimpleYOLO
-import yaml
+from MidYOLO import MidYOLO
 from data_processing_cifar import DataProcessorCIFAR
 from data_processing_kitti import DataProcessorKitti
 from load_args import LoadArgs
@@ -22,6 +19,8 @@ num_classes = kwargs.pop("num_classes", 4)
 # Load model
 if model_type == "simpleYOLO":
   model = SimpleYOLO(num_classes=num_classes)
+elif model_type == "midYOLO":
+  model = MidYOLO(num_classes=num_classes)
 else:
   model = MyModel(model_type, batch_size)
 
