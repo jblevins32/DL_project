@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from torcheval.metrics.functional import multiclass_f1_score
+import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 def compute_loss(predictions, targets, num_classes=5):
     """
@@ -166,8 +167,8 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
             # if iou >= iou_threshold:
             #
 
-    # target_tensor = target_tensor.reshape(num_cells * num_anchors, 5 + num_classes)
-    # predictions = predictions.reshape(num_cells * num_anchors, 5 + num_classes)
+    target_tensor = target_tensor.reshape(num_cells * num_anchors, 5 + num_classes)
+    predictions = predictions.reshape(num_cells * num_anchors, 5 + num_classes)
 
     # Masks to separate the targets from the background for comparison
     obj_mask = target_tensor[..., 4] == 1.0
@@ -179,18 +180,18 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     # bce_loss_class = nn.CrossEntropyLoss(reduction='sum')
 
     bbox_loss_fn = nn.MSELoss(reduction='sum')
-    bce_loss_conf = nn.MSELoss(reduction='sum')
-    bce_loss_class = nn.MSELoss(reduction='sum')
+    conf_loss_fn = nn.MSELoss(reduction='sum')
+    class_loss_fn = nn.MSELoss(reduction='sum')
 
     # Localization loss
     pred_img = torch.sigmoid(predictions[obj_mask][..., 0:4]) * torch.tensor([img_w, img_h, img_w, img_h], device=device)
     target_img = target_tensor[obj_mask][..., 0:4] * torch.tensor([img_w, img_h, img_w, img_h], device=device)
     
     # Using centers and bbox width, height for loss function
-    box_center_x = abs((pred_img[:,0] + pred_img[:,2])) / 2
-    box_center_y = abs((pred_img[:,1] + pred_img[:,3])) / 2
+    box_center_x = abs((pred_img[:,0] + pred_img[:,2])) / 2.0
+    box_center_y = abs((pred_img[:,1] + pred_img[:,3])) / 2.0
     box_w = abs(pred_img[:,0] - pred_img[:,2])
-    box_h = abs(pred_img[:,0] - pred_img[:,2])
+    box_h = abs(pred_img[:,1] - pred_img[:,3])
     
     pred_img_center_norm = torch.zeros_like(pred_img)
     
@@ -200,10 +201,10 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     pred_img_center_norm[:,3] = box_h / img_h
     
     # Now for target image
-    box_center_x = abs((target_img[:,0] + target_img[:,2])) / 2
-    box_center_y = abs((target_img[:,1] + target_img[:,3])) / 2
-    box_w = abs(target_img[:,0] - pred_img[:,2])
-    box_h = abs(target_img[:,0] - target_img[:,2])
+    box_center_x = abs((target_img[:,0] + target_img[:,2])) / 2.0
+    box_center_y = abs((target_img[:,1] + target_img[:,3])) / 2.0
+    box_w = abs(target_img[:,0] - target_img[:,2])
+    box_h = abs(target_img[:,1] - target_img[:,3])
     
     target_img_center_norm = torch.zeros_like(pred_img)
     
@@ -213,18 +214,30 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     target_img_center_norm[:,3] = box_h / img_h
     
     # Order the pred and target objects to match eachother's order based on relative sums of rows
+
+    # sorted_preds = pred_img_center_norm[torch.argsort(torch.sum(pred_img_center_norm, dim=1))]
+    # sorted_targets = target_img_center_norm[torch.argsort(torch.sum(target_img_center_norm, dim=1))]
+
+    # Replacing above approach of sort of sums with Hungarian Algorithm (Linear Sum Assignment)
+    # Minimizes cost of differences between matching potentials
+
+    # cost_matrix = torch.cdist(pred_img_center_norm, target_img_center_norm, p=2).cpu().detach().numpy()
+    #
+    # # Step 2: Solve the assignment problem (Hungarian algorithm)
+    # pred_indices, target_indices = linear_sum_assignment(cost_matrix)
+    #
+    # # Step 3: Reorder predictions and targets
+    # sorted_preds = pred_img_center_norm[pred_indices]
+    # sorted_targets = target_img_center_norm[target_indices]
     
-    sorted_preds = pred_img_center_norm[torch.argsort(torch.sum(pred_img_center_norm, dim=1))]
-    sorted_targets = target_img_center_norm[torch.argsort(torch.sum(target_img_center_norm, dim=1))]
-    
-    bbox_loss = bbox_loss_fn(sorted_preds, sorted_targets)
+    bbox_loss = bbox_loss_fn(pred_img_center_norm, target_img_center_norm)
 
     # Confidence loss
-    conf_loss_obj = bce_loss_conf(predictions[obj_mask][..., 4], target_tensor[obj_mask][..., 4])
-    conf_loss_noobj = bce_loss_conf(predictions[noobj_mask][..., 4], target_tensor[noobj_mask][..., 4])
+    conf_loss_obj = conf_loss_fn(predictions[obj_mask][..., 4], target_tensor[obj_mask][..., 4])
+    conf_loss_noobj = conf_loss_fn(predictions[noobj_mask][..., 4], target_tensor[noobj_mask][..., 4])
 
     # Class loss
-    class_loss = bce_loss_class(predictions[obj_mask][..., 5:5+num_classes], target_tensor[obj_mask][..., 5:5+num_classes])
+    class_loss = class_loss_fn(predictions[obj_mask][..., 5:5+num_classes], target_tensor[obj_mask][..., 5:5+num_classes])
 
     # Weights for each component of the loss function, currently evenly weighted
     # lambda_boundingBoxes = 0.5
