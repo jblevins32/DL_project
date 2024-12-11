@@ -11,6 +11,7 @@ from data_processing_kitti import DataProcessorKitti
 from evalutation import compute_loss
 from SimpleYOLO import SimpleYOLO
 from MidYOLO import MidYOLO
+from EncoderDecoderYOLO import EncoderDecoderYOLO
 from torchinfo import summary
 from datetime import datetime
 from globals import root_directory
@@ -60,6 +61,8 @@ class SolverKitti(object):
             self.model = SimpleYOLO(num_classes=self.num_classes)
         elif self.model_type == "midYOLO":
             self.model = MidYOLO(num_classes=self.num_classes)
+        elif self.model_type == "EncoderDecoderYOLO":
+            self.model = EncoderDecoderYOLO(num_classes=self.num_classes)
 
         summary(self.model, input_size=(self.batch_size, 3, 365, 1220))
 
