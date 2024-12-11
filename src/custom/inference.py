@@ -26,7 +26,7 @@ else:
 
 # Load weights from trained model and set model in eval mode
 basedir = pathlib.Path(__file__).parent.parent.parent.resolve()
-state_dict = torch.load(str(basedir) + "/models/simpleyolo_loss_0.391_f1_0.8725_epoch_40.pt")
+state_dict = torch.load(str(basedir) + "/models/simpleyolo_loss_0.3_f1_0.8742_epoch_48.pt")
 model.load_state_dict(state_dict)
 model.eval()
 

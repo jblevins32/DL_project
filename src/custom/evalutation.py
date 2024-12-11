@@ -212,8 +212,12 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     target_img_center_norm[:,2] = box_w / img_w
     target_img_center_norm[:,3] = box_h / img_h
     
-    # Potentially need to order the pred and target objects?
-    bbox_loss = bbox_loss_fn(pred_img_center_norm, target_img_center_norm)
+    # Order the pred and target objects to match eachother's order based on relative sums of rows
+    
+    sorted_preds = pred_img_center_norm[torch.argsort(torch.sum(pred_img_center_norm, dim=1))]
+    sorted_targets = target_img_center_norm[torch.argsort(torch.sum(target_img_center_norm, dim=1))]
+    
+    bbox_loss = bbox_loss_fn(sorted_preds, sorted_targets)
 
     # Confidence loss
     conf_loss_obj = bce_loss_conf(predictions[obj_mask][..., 4], target_tensor[obj_mask][..., 4])
@@ -229,9 +233,9 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     # lambda_classScore = 100.0
 
     # These are similar to the weights that the YOLO paper uses
-    lambda_boundingBoxes = 7
+    lambda_boundingBoxes = 15
     lambda_confidence = 3.0
-    lambda_noObjectBoxes = 0.25
+    lambda_noObjectBoxes = 1
     lambda_classScore = 2
 
     # Calculating each component of loss with weights
