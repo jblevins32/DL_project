@@ -14,4 +14,3 @@ dependencies:
   - torchinfo
   - torchvision
   - scikit-learn
-  - torcheval
