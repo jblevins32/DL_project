@@ -2,6 +2,7 @@ import pathlib
 from models import MyModel
 from SimpleYOLO import SimpleYOLO
 from MidYOLO import MidYOLO
+from EncoderDecoderYOLO import EncoderDecoderYOLO
 from data_processing_cifar import DataProcessorCIFAR
 from data_processing_kitti import DataProcessorKitti
 from load_args import LoadArgs
@@ -21,6 +22,8 @@ if model_type == "simpleYOLO":
   model = SimpleYOLO(num_classes=num_classes)
 elif model_type == "midYOLO":
   model = MidYOLO(num_classes=num_classes)
+elif model_type == "EncoderDecoderYOLO":
+  model = EncoderDecoderYOLO(num_classes=num_classes)
 else:
   model = MyModel(model_type, batch_size)
 
