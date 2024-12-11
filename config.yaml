@@ -7,7 +7,7 @@ Train:
   warmup: 0
   momentum: 0.9
   gamma: 1
-  model_type: "midYOLO" # simpleYOLO, midYOLO
+  model_type: "midYOLO" # simpleYOLO, midYOLO, DecoderEncoderYOLO, linear, alexnet, resnet, customcnn, customcnn_kitti
   data_type: "kitti" # cifar, kitti
   num_classes: 4
 
