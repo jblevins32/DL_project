@@ -20,10 +20,15 @@ def ProcessOutputImg(img, output, label, num_classes):
     # sigmoid or softmax everything
     output[..., 0:5] = torch.sigmoid(output[..., 0:5])
     output[..., 5:5+num_classes] = torch.softmax(output[:, 5:5+num_classes], dim=-1)
-
+    
+    # Find gridboxes in output equal to the number of labels
+    top_indices = torch.argsort(output[:,4], descending = True)
+    num_labels = len(label)
+    conf_mask = top_indices[0:num_labels]
+    
     # Find gridboxes in output with some confidence
-    conf_level = 0.00001 # This is the min confidence we want our bbox model to be
-    conf_mask = output[:,4] > conf_level
+    # conf_level = 0.5001 # This is the min confidence we want our bbox model to be
+    # conf_mask = output[:,4] > conf_level
     
     # Keep only the confident bboxes and bring them back to correct img size
     resulting_boxes = output[conf_mask]

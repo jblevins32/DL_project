@@ -174,13 +174,13 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     noobj_mask = target_tensor[..., 4] == 0.0
 
     # Loss functions
-    bbox_loss_fn = nn.SmoothL1Loss(reduction='sum')
-    bce_loss_conf = nn.BCEWithLogitsLoss(reduction='sum')
-    bce_loss_class = nn.CrossEntropyLoss(reduction='sum')
+    # bbox_loss_fn = nn.SmoothL1Loss(reduction='sum')
+    # bce_loss_conf = nn.BCEWithLogitsLoss(reduction='sum')
+    # bce_loss_class = nn.CrossEntropyLoss(reduction='sum')
 
-    # bbox_loss_fn = nn.MSELoss(reduction='sum')
-    # bce_loss_conf = nn.MSELoss(reduction='sum')
-    # bce_loss_class = nn.MSELoss(reduction='sum')
+    bbox_loss_fn = nn.MSELoss(reduction='sum')
+    bce_loss_conf = nn.MSELoss(reduction='sum')
+    bce_loss_class = nn.MSELoss(reduction='sum')
 
     # Localization loss
     pred_img = torch.sigmoid(predictions[obj_mask][..., 0:4]) * torch.tensor([img_w, img_h, img_w, img_h], device=device)
