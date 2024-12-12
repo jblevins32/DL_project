@@ -1,4 +1,4 @@
-# Autonomous Vehicle Object Detection
+# A Vision-Based Object Tracking Model for Autonomous Vehicles
 The purpose of this project is to improve upon current state of 
 the art object detection models by creating a vision-based perception model 
 that is capable of identifying and bboxing common road obstacles from visual data 
