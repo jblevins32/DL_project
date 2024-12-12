@@ -32,6 +32,7 @@ that is capable of identifying and bboxing common road obstacles from visual dat
     - `SimpleYOLO.py`: SimpleYOLO model implementation
     - `TinyYOLO.py`: TinyYOLO model implementation
     - `MidYOLO.py`: AttentionYOLO model implementation
+    - `EncoderDecoderYOLO.py`: EncodeYOLO model implementation
     - `solver_kitti.py`: Core function for training the model, called from `run.py`
     - `train.py`: Loads hyperparameters for the model and runs the training
 - `config.yaml`: Model training hyperparameters
