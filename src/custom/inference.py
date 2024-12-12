@@ -45,11 +45,6 @@ if data_type == "cifar":
 elif data_type == "kitti":
   _,_,test_dataset = DataProcessorKitti(batch_size, training_split_percentage, dataset_percentage)
 
-# This is grabbing an input image from the directory
-# image_path = str(basedir) + "/src/custom/input_media/bird.jpg"
-# input_rgb = Image.open(image_path).convert("RGB")
-# input_tensor = preprocess(input_rgb).unsqueeze(0)
-
 # Set here to test specific frame
 image_idx = 15
 
@@ -64,16 +59,3 @@ with torch.no_grad():
 # Process output kitti
 # ShowResults(img, output)
 predictions = ProcessOutputImg(img, output, label, num_classes = num_classes)
-
-
-
-test=1
-  
-# Process output cifar input image from the directory
-# probs = torch.nn.functional.softmax(output[0],dim=0)
-# prediction = probs.argmax().item()
-
-# classes = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 
-#                    'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
-
-# print(f'We are {round(probs[prediction].item()*100,2)}% sure this is a(n) {classes[prediction]}')
