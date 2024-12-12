@@ -10,7 +10,7 @@ from data_processing_cifar import DataProcessorCIFAR
 from data_processing_kitti import DataProcessorKitti
 from evalutation import compute_loss
 from SimpleYOLO import SimpleYOLO
-from MidYOLO import MidYOLO
+from AttentionYOLO import AttentionYOLO
 from tinyYOLO import TinyYOLO
 from EncoderDecoderYOLO import EncoderDecoderYOLO
 from torchinfo import summary
@@ -60,8 +60,8 @@ class SolverKitti(object):
         # Load model
         if self.model_type == "simpleYOLO":
             self.model = SimpleYOLO(num_classes=self.num_classes)
-        elif self.model_type == "midYOLO":
-            self.model = MidYOLO(num_classes=self.num_classes)
+        elif self.model_type == "attentionYOLO":
+            self.model = AttentionYOLO(num_classes=self.num_classes)
         elif self.model_type == "EncoderDecoderYOLO":
             self.model = EncoderDecoderYOLO(num_classes=self.num_classes)
         elif self.model_type == "tinyYOLO":

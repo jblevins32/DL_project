@@ -1,7 +1,7 @@
 import pathlib
 from models import MyModel
 from SimpleYOLO import SimpleYOLO
-from MidYOLO import MidYOLO
+from AttentionYOLO import AttentionYOLO
 from EncoderDecoderYOLO import EncoderDecoderYOLO
 from tinyYOLO import TinyYOLO
 from data_processing_cifar import DataProcessorCIFAR
@@ -21,8 +21,8 @@ num_classes = kwargs.pop("num_classes", 4)
 # Load model
 if model_type == "simpleYOLO":
   model = SimpleYOLO(num_classes=num_classes)
-elif model_type == "midYOLO":
-  model = MidYOLO(num_classes=num_classes)
+elif model_type == "attentionYOLO":
+  model = AttentionYOLO(num_classes=num_classes)
 elif model_type == "EncoderDecoderYOLO":
   model = EncoderDecoderYOLO(num_classes=num_classes)
 elif model_type == "tinyYOLO":

@@ -81,9 +81,9 @@ def extra_conv_block(in_channels, out_channels):
     )
 
 
-class MidYOLO(nn.Module):
+class AttentionYOLO(nn.Module):
     def __init__(self, num_classes=4, num_anchors=2):
-        super(MidYOLO, self).__init__()
+        super(AttentionYOLO, self).__init__()
         out_channels = num_anchors * (5 + num_classes)
 
         # Stem
