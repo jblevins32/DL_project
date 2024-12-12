@@ -102,17 +102,12 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
         cell_pred = predictions[cell_index]  # (num_anchors, 9)
         pred_anchor_bboxes = cell_pred[:, 0:4]
         pred_anchor_confs = cell_pred[:, 4]
-        pred_anchor_classes = cell_pred[:, 5:]
-
-        # determines which of the anchors for this cell had higher confidence in prediction
-        # max_conf, max_conf_idx = torch.max(pred_anchor_confs, dim=0)
-        # pred_bbox = pred_anchor_bboxes[max_conf_idx]
-        # pred_class = torch.argmax(pred_anchor_classes[max_conf_idx])
         
         ### Jacob's addition!
         # Get IOU to determine which prediction in the target grid matches more closely with the target
         iou = -float('inf')
         conf_flag = True
+        max_conf_idx = 0 # default to be overwritten
         for anchor_idx, pred_bbox in enumerate(pred_anchor_bboxes):
             new_iou = bbox_iou(gt[0:4], pred_bbox)
             if new_iou > iou:
@@ -125,8 +120,6 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
                     
         if conf_flag == False:
             _, max_conf_idx = torch.max(pred_anchor_confs, dim=0)
-
-        ###
         
         # Assign true target to grid cell and the anchor with highest iou
         target_tensor[cell_index, max_conf_idx, 0] = bbox_left_target
@@ -148,24 +141,6 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
             TP += 1
         else:
             FP += 1
-        
-
-        # pred_left = pred_bbox[0] * img_w
-        # pred_top = pred_bbox[1] * img_h
-        # pred_right = pred_bbox[2] * img_w
-        # pred_bottom = pred_bbox[3] * img_h
-        #
-        # target_left = bbox_left_target * img_w
-        # target_top = bbox_top_target * img_h
-        # target_right = bbox_right_target * img_w
-        # target_bottom = bbox_bottom_target * img_h
-
-            # iou = bbox_iou(
-            #     torch.tensor([pred_left, pred_top, pred_right, pred_bottom], device=device),
-            #     torch.tensor([target_left, target_top, target_right, target_bottom], device=device)
-            # )
-            # if iou >= iou_threshold:
-            #
 
     target_tensor = target_tensor.reshape(num_cells * num_anchors, 5 + num_classes)
     predictions = predictions.reshape(num_cells * num_anchors, 5 + num_classes)
@@ -173,11 +148,6 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     # Masks to separate the targets from the background for comparison
     obj_mask = target_tensor[..., 4] == 1.0
     noobj_mask = target_tensor[..., 4] == 0.0
-
-    # Loss functions
-    # bbox_loss_fn = nn.SmoothL1Loss(reduction='sum')
-    # bce_loss_conf = nn.BCEWithLogitsLoss(reduction='sum')
-    # bce_loss_class = nn.CrossEntropyLoss(reduction='sum')
 
     bbox_loss_fn = nn.MSELoss(reduction='sum')
     conf_loss_fn = nn.MSELoss(reduction='sum')
@@ -213,23 +183,6 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
     target_img_center_norm[:,2] = box_w / img_w
     target_img_center_norm[:,3] = box_h / img_h
     
-    # Order the pred and target objects to match eachother's order based on relative sums of rows
-
-    # sorted_preds = pred_img_center_norm[torch.argsort(torch.sum(pred_img_center_norm, dim=1))]
-    # sorted_targets = target_img_center_norm[torch.argsort(torch.sum(target_img_center_norm, dim=1))]
-
-    # Replacing above approach of sort of sums with Hungarian Algorithm (Linear Sum Assignment)
-    # Minimizes cost of differences between matching potentials
-
-    # cost_matrix = torch.cdist(pred_img_center_norm, target_img_center_norm, p=2).cpu().detach().numpy()
-    #
-    # # Step 2: Solve the assignment problem (Hungarian algorithm)
-    # pred_indices, target_indices = linear_sum_assignment(cost_matrix)
-    #
-    # # Step 3: Reorder predictions and targets
-    # sorted_preds = pred_img_center_norm[pred_indices]
-    # sorted_targets = target_img_center_norm[target_indices]
-    
     bbox_loss = bbox_loss_fn(pred_img_center_norm, target_img_center_norm)
 
     # Confidence loss
@@ -259,11 +212,6 @@ def compute_loss_single_image(predictions, targets, num_classes, img_size=(365, 
 
     # Combines loss function component functions into a total loss value
     total_loss = bboxLoss + confidenceLoss + backgroundLoss + classScoreLoss
-
-    # Metrics Calculation. We are comparing the entire predictions to the targets... is that right? 0 means class 0 so it is saying that we are getting most of them wrong. Only compare the found objects?;
-    # predictedClassArray = torch.argmax(torch.softmax(predictions[..., 5:], dim=2), dim=2) # this gives a 114x2 of what each anchor predicts as its class
-    # targetClassArray = torch.argmax(target_tensor[..., 5:], dim=2) 
-    # f1_score = multiclass_f1_score(predictedClassArray, targetClassArray, num_classes=num_classes)
     
     # Using precision for now since I know this metric is accurate
     precision = TP/(TP+FP)
