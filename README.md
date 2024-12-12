@@ -14,10 +14,6 @@ that is capable of identifying and bboxing common road obstacles from visual dat
   - Select model and copy its path into inference.py to use a specific trained model
   - Run `inference.py`. Be sure to adjust the input images to infer on.
 
-## Notes:
-- Some of the files in the below directory are not showing up. 
-  - They are in the .gitignore because they have too much data to push.
-
 ## File Structure:
 - `dataset`: All image files and corresponding labels for Training/Testing
   - `images`: Training and Testing image data
@@ -32,10 +28,12 @@ that is capable of identifying and bboxing common road obstacles from visual dat
     - `data_processing.py`: Extracts data from the chosen dataset and sets it up for training 
     - `inference.py`: Run inference on the trained model
     - `models.py`: NN model definitions. Here you can make models and choose which to utilize
-    - `solver.py`: Core function for training the model, called from `run.py`
+    - `solver_kitti.py`: Core function for training the model, called from `run.py`
     - `train.py`: Loads hyperparameters for the model and runs the training
 - `config.yaml`: Model training hyperparameters
 - `environment.yaml`: Conda environment
+
+## Note: some other files are created and not yet stored in their appropriate location in the file structure presented above ^.
 
 ## Conda:
 - Create env from `environment.yaml`
