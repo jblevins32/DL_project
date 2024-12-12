@@ -24,10 +24,14 @@ that is capable of identifying and bboxing common road obstacles from visual dat
 - `models`: Saved models
 - `src`: Source code
   - `custom`: Custom model training and inference
-    - `input media`: Place input media here to feed to the model
+    - `data_downloader.py`: Download KITTI data
+    - `data_processing_kitti.py`: Process the KITTI data for training, validation, and testing
     - `data_processing.py`: Extracts data from the chosen dataset and sets it up for training 
     - `inference.py`: Run inference on the trained model
     - `models.py`: NN model definitions. Here you can make models and choose which to utilize
+    - `SimpleYOLO.py`: SimpleYOLO model implementation
+    - `TinyYOLO.py`: TinyYOLO model implementation
+    - `MidYOLO.py`: AttentionYOLO model implementation
     - `solver_kitti.py`: Core function for training the model, called from `run.py`
     - `train.py`: Loads hyperparameters for the model and runs the training
 - `config.yaml`: Model training hyperparameters
