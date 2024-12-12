@@ -57,7 +57,7 @@ class SolverKitti(object):
                                                                                        self.dataset_percentage,
                                                                                        num_classes=self.num_classes)
 
-        # Define the NN model
+        # Load model
         if self.model_type == "simpleYOLO":
             self.model = SimpleYOLO(num_classes=self.num_classes)
         elif self.model_type == "midYOLO":
@@ -66,6 +66,8 @@ class SolverKitti(object):
             self.model = EncoderDecoderYOLO(num_classes=self.num_classes)
         elif self.model_type == "tinyYOLO":
             self.model = TinyYOLO(num_classes=self.num_classes)
+        else:
+           self. model = self.MyModel(self.model_type, self.batch_size)
 
         summary(self.model, input_size=(self.batch_size, 3, 365, 1220))
 
@@ -402,6 +404,7 @@ class SolverKitti(object):
         fig_name_eps = os.path.join(specific_fig_dir, "loss.eps")
         plt.savefig(fig_png_path)
         plt.savefig(fig_name_eps)
+        plt.close()
         
         # Precision plot
         plt.figure()
@@ -415,6 +418,7 @@ class SolverKitti(object):
         fig_name_eps = os.path.join(specific_fig_dir, "precision.eps")
         plt.savefig(fig_png_path)
         plt.savefig(fig_name_eps)
+        plt.close()
             
     
     def _adjust_learning_rate(self, epoch):

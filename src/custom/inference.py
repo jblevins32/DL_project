@@ -3,6 +3,7 @@ from models import MyModel
 from SimpleYOLO import SimpleYOLO
 from MidYOLO import MidYOLO
 from EncoderDecoderYOLO import EncoderDecoderYOLO
+from tinyYOLO import TinyYOLO
 from data_processing_cifar import DataProcessorCIFAR
 from data_processing_kitti import DataProcessorKitti
 from load_args import LoadArgs
@@ -24,12 +25,17 @@ elif model_type == "midYOLO":
   model = MidYOLO(num_classes=num_classes)
 elif model_type == "EncoderDecoderYOLO":
   model = EncoderDecoderYOLO(num_classes=num_classes)
+elif model_type == "tinyYOLO":
+  model = TinyYOLO(num_classes=num_classes)
 else:
   model = MyModel(model_type, batch_size)
 
 # Load weights from trained model and set model in eval mode
 basedir = pathlib.Path(__file__).parent.parent.parent.resolve()
-state_dict = torch.load(str(basedir) + "/models/simpleyolo_loss_0.3_f1_0.8742_epoch_48.pt")
+state_dict = torch.load(str(basedir) + "/models/encoderdecoder/encoderdecoderyolo_loss_0.958_f1_0.6917_epoch_66.pt") 
+# best_simpleyolo_correctedloss/simpleyolo_loss_0.304_f1_0.8261_epoch_92.pt"
+# best_tinyyolo/simpleyolo_loss_2.605_f1_0.6142_epoch_111.pt
+# encoderdecoder/encoderdecoderyolo_loss_0.958_f1_0.6917_epoch_66.pt
 model.load_state_dict(state_dict)
 model.eval()
 
@@ -45,7 +51,7 @@ elif data_type == "kitti":
 # input_tensor = preprocess(input_rgb).unsqueeze(0)
 
 # Set here to test specific frame
-image_idx = 0
+image_idx = 15
 
 img = test_dataset[image_idx][0]
 label = test_dataset[image_idx][1] # (n,5) = number of boxes, 4 bbox coords and 1 class ID
