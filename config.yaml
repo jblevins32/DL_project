@@ -7,7 +7,7 @@ Train:
   warmup: 0
   momentum: 0.9
   gamma: 1
-  model_type: "midYOLO" # tinyYOLO, simpleYOLO, EncoderDecoderYOLO, attentionYOLO
+  model_type: "attentionYOLO" # tinyYOLO, simpleYOLO, EncoderDecoderYOLO, attentionYOLO
   data_type: "kitti" # cifar, kitti
   num_classes: 4
 
